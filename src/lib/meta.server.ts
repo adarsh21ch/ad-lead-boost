@@ -71,13 +71,13 @@ export async function deliverStatusEvent(
   }
 
   const userData: Record<string, unknown> = {};
-  if (lead?.phone_hash) userData.ph = [lead.phone_hash];
-  if (lead?.email_hash) userData.em = [lead.email_hash];
-  if (lead?.fbc) userData.fbc = lead.fbc;
-  if (lead?.fbp) userData.fbp = lead.fbp;
-  if (lead?.client_ip) userData.client_ip_address = lead.client_ip;
-  if (lead?.client_user_agent) userData.client_user_agent = lead.client_user_agent;
-  if (lead?.meta_leadgen_id) userData.lead_id = lead.meta_leadgen_id;
+  if (lead?.phone_hash) userData["ph"] = [lead.phone_hash];
+  if (lead?.email_hash) userData["em"] = [lead.email_hash];
+  if (lead?.fbc) userData["fbc"] = lead.fbc;
+  if (lead?.fbp) userData["fbp"] = lead.fbp;
+  if (lead?.client_ip) userData["client_ip_address"] = String(lead.client_ip);
+  if (lead?.client_user_agent) userData["client_user_agent"] = lead.client_user_agent;
+  if (lead?.meta_leadgen_id) userData["lead_id"] = lead.meta_leadgen_id;
 
   const body = {
     data: [
