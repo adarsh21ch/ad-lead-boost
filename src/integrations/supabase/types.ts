@@ -163,8 +163,10 @@ export type Database = {
         Row: {
           account_id: string
           created_at: string
+          dispatch_status: string
           id: string
           lead_id: string
+          next_attempt_at: string
           raw_payload: Json | null
           source: string
           status: string
@@ -172,8 +174,10 @@ export type Database = {
         Insert: {
           account_id: string
           created_at?: string
+          dispatch_status?: string
           id?: string
           lead_id: string
+          next_attempt_at?: string
           raw_payload?: Json | null
           source: string
           status: string
@@ -181,8 +185,10 @@ export type Database = {
         Update: {
           account_id?: string
           created_at?: string
+          dispatch_status?: string
           id?: string
           lead_id?: string
+          next_attempt_at?: string
           raw_payload?: Json | null
           source?: string
           status?: string
