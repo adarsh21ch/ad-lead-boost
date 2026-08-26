@@ -33,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { getTokenHealth } from "@/lib/token-health";
 
 const WEBHOOK_URL = "https://adsproindia.com/api/public/webhooks/status";
 
@@ -100,6 +101,8 @@ function IntegrationPage() {
   });
 
   const ready = Boolean(account && account.status === "active" && account.meta_dataset_id);
+  const tokenHealth = getTokenHealth(account ?? {});
+  const tokenExpired = tokenHealth.state === "expired";
   const apiKey = (account?.webhook_api_key ?? "") as string;
 
   const { data: deliveries } = useQuery({
@@ -367,7 +370,18 @@ Content-Type: application/json
                     event shows up there instead of affecting optimization.
                   </p>
                 </div>
-                <Button onClick={sendTest} disabled={testing}>
+                {tokenExpired && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                    <p className="font-medium text-destructive">Your Meta connection has expired.</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Test events cannot be sent until you reconnect Meta.
+                    </p>
+                    <Button asChild variant="outline" size="sm" className="mt-2">
+                      <Link to="/dashboard">Reconnect Meta</Link>
+                    </Button>
+                  </div>
+                )}
+                <Button onClick={sendTest} disabled={testing || tokenExpired}>
                   {testing ? "Sending…" : "Send test event"}
                 </Button>
                 {result && (
@@ -426,9 +440,21 @@ Content-Type: application/json
                             </TableCell>
                             <TableCell className="text-xs">{row.http_status ?? "—"}</TableCell>
                             <TableCell>
-                              <Badge variant={row.delivered_at ? "default" : "destructive"}>
-                                {row.delivered_at ? "OK" : "Failed"}
-                              </Badge>
+                              {row.delivered_at ? (
+                                <Badge>OK</Badge>
+                              ) : row.dispatch_status === "abandoned" ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                >
+                                  Abandoned after {row.attempt} attempt
+                                  {row.attempt === 1 ? "" : "s"}
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive">
+                                  Failed (attempt {row.attempt}, retrying)
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
