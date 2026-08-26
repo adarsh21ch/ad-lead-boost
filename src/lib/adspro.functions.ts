@@ -53,37 +53,90 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
 
 export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { accountId: string }) => data)
+  .inputValidator((data: { accountId: string }) => {
+    if (!data?.accountId) throw new Error("accountId is required");
+    return data;
+  })
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken, graphGet } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-    const json = await graphGet(
-      `${graphUrl("me/adaccounts")}?fields=id,name,account_id,account_status&limit=100`,
-      token,
-      "me/adaccounts",
-    );
-    return (json.data ?? []) as Array<{
-      id: string;
-      name: string;
-      account_id: string;
-      account_status?: number;
-    }>;
+    try {
+      const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
+      const json = await graphGet(
+        `${graphUrl("me/adaccounts")}?fields=id,name,account_status,business&limit=100`,
+        token,
+        "me/adaccounts",
+      );
+      return {
+        ok: true as const,
+        data: (json.data ?? []) as Array<{
+          id: string;
+          name: string;
+          account_status?: number;
+          business?: { id: string; name?: string };
+        }>,
+        rawResponse: JSON.stringify(json),
+      };
+    } catch (error) {
+      const details = getMetaGraphErrorDetails(error);
+      if (details.code === 190) {
+        const { error: statusError } = await context.supabase
+          .from("accounts")
+          .update({ status: "token_expired" })
+          .eq("id", data.accountId)
+          .eq("owner_user_id", context.userId);
+        if (statusError) console.error("[select-ad-account] failed to mark token expired", statusError);
+      }
+      return { ok: false as const, error: details };
+    }
   });
 
 export const listMetaPixels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { accountId: string; adAccountId: string }) => data)
+  .inputValidator((data: { accountId: string; adAccountId: string; businessId?: string }) => {
+    if (!data?.accountId || !data?.adAccountId) throw new Error("accountId and adAccountId are required");
+    return data;
+  })
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken, graphGet } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-    const json = await graphGet(
-      `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100`,
-      token,
-      `${data.adAccountId}/adspixels`,
-    );
-    return (json.data ?? []) as Array<{ id: string; name: string }>;
+    try {
+      const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
+      const requests = [
+        graphGet(`${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100`, token, `${data.adAccountId}/adspixels`),
+      ];
+      if (data.businessId) {
+        requests.push(
+          graphGet(`${graphUrl(`${data.businessId}/owned_pixels`)}?fields=id,name&limit=100`, token, `${data.businessId}/owned_pixels`),
+          graphGet(`${graphUrl(`${data.businessId}/client_pixels`)}?fields=id,name&limit=100`, token, `${data.businessId}/client_pixels`),
+        );
+      }
+      const settled = await Promise.allSettled(requests);
+      const errors = settled
+        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+        .map((result) => getMetaGraphErrorDetails(result.reason));
+      const pixels = new Map<string, { id: string; name: string }>();
+      for (const result of settled) {
+        if (result.status !== "fulfilled") continue;
+        for (const pixel of (result.value.data ?? []) as Array<{ id: string; name?: string }>) {
+          if (pixel.id) pixels.set(pixel.id, { id: pixel.id, name: pixel.name ?? `Dataset ${pixel.id}` });
+        }
+      }
+      const tokenError = errors.find((error) => error.code === 190);
+      if (tokenError) {
+        const { error: statusError } = await context.supabase
+          .from("accounts")
+          .update({ status: "token_expired" })
+          .eq("id", data.accountId)
+          .eq("owner_user_id", context.userId);
+        if (statusError) console.error("[select-ad-account] failed to mark token expired", statusError);
+        return { ok: false as const, error: tokenError };
+      }
+      if (pixels.size === 0 && errors.length > 0) return { ok: false as const, error: errors[0] };
+      return { ok: true as const, data: [...pixels.values()], warnings: errors };
+    } catch (error) {
+      return { ok: false as const, error: getMetaGraphErrorDetails(error) };
+    }
   });
 
 export const saveAdAccountSelection = createServerFn({ method: "POST" })
@@ -95,16 +148,32 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    const { data: saved, error } = await context.supabase
       .from("accounts")
       .update({
-        meta_ad_account_id: data.adAccountId,
+        meta_ad_account_id: adAccountId,
         meta_dataset_id: data.datasetId,
         status: "active",
       })
-      .eq("id", data.accountId);
-    if (error) throw error;
-    return { ok: true };
+      .eq("id", data.accountId)
+      .eq("owner_user_id", context.userId)
+      .select("id, meta_ad_account_id, meta_dataset_id")
+      .maybeSingle();
+    if (error) {
+      console.error("[select-ad-account] database save failed", error);
+      return { ok: false as const, error: error.message };
+    }
+    if (!saved) {
+      console.error("[select-ad-account] database save updated no owned account", { accountId: data.accountId });
+      return { ok: false as const, error: "No owned account was updated." };
+    }
+    console.info("[select-ad-account] selection saved", {
+      accountId: saved.id,
+      adAccountId: saved.meta_ad_account_id,
+      datasetId: saved.meta_dataset_id,
+    });
+    return { ok: true as const, account: saved };
   });
 
 export const listLeads = createServerFn({ method: "GET" })
