@@ -1,5 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { getCookies, setCookie, setResponseHeaders } from "@tanstack/react-start/server";
+import { getCookies, setCookie, setResponseHeader } from "@tanstack/react-start/server";
 import type { Database } from "./types";
 
 const AUTH_COOKIE_OPTIONS: CookieOptions = {
@@ -55,7 +55,7 @@ export function createSupabaseServerClient() {
         return Object.entries(getCookies()).map(([name, value]) => ({ name, value }));
       },
       setAll(cookiesToSet, headers) {
-        setResponseHeaders(headers);
+        Object.entries(headers).forEach(([name, value]) => setResponseHeader(name, value));
         cookiesToSet.forEach(({ name, value, options }) => {
           setCookie(name, value, {
             ...options,
