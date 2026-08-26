@@ -3,6 +3,7 @@ import { createMiddleware } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
+import { createSupabaseServerClient } from './session.server'
 
 
 
@@ -53,16 +54,20 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     }
 
     const authHeader = request.headers.get('authorization');
+    let token: string | undefined;
 
-    if (!authHeader) {
-      throw new Error('Unauthorized: No authorization header provided');
-    }
-
-    if (!authHeader.startsWith('Bearer ')) {
+    if (authHeader && !authHeader.startsWith('Bearer ')) {
       throw new Error('Unauthorized: Only Bearer tokens are supported');
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    if (authHeader) {
+      token = authHeader.replace('Bearer ', '');
+    } else {
+      const serverSupabase = createSupabaseServerClient();
+      const { data } = await serverSupabase.auth.getSession();
+      token = data.session?.access_token;
+    }
+
     if (!token) {
       throw new Error('Unauthorized: No token provided');
     }
