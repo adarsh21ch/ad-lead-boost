@@ -24,10 +24,21 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
 
+const META_CONNECT_ERRORS: Record<string, string> = {
+  missing_config:
+    "Meta app credentials are not configured on the server (META_APP_ID / META_APP_SECRET).",
+  bad_state: "The OAuth state check failed. Please start the connection again.",
+  token_exchange:
+    "Meta rejected the authorization code exchange. This is usually a redirect_uri mismatch — check that the redirect URI in your Meta app settings exactly matches the server's META_OAUTH_REDIRECT_URI. Details are in the server logs.",
+  token_upgrade: "Meta accepted the code but the long-lived token exchange failed. Details are in the server logs.",
+  encryption_config: "The server TOKEN_ENCRYPTION_KEY is not configured, so the token could not be stored.",
+  db_write: "The token was retrieved but saving it to your account failed. Details are in the server logs.",
+};
+
 function DashboardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search = useSearch({ strict: false }) as { meta_connect?: string };
+  const search = useSearch({ strict: false }) as { meta_connect?: string; code?: string };
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -68,7 +79,10 @@ function DashboardPage() {
 
         {search.meta_connect === "error" && (
           <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            Meta connection failed. Please try again.
+            <span className="font-medium">Meta connection failed.</span>{" "}
+            {META_CONNECT_ERRORS[search.code ?? ""] ??
+              "An unexpected error occurred. Please try again."}
+            {search.code && <span className="ml-1 font-mono text-xs">({search.code})</span>}
           </div>
         )}
 
