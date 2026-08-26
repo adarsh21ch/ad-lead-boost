@@ -10,33 +10,175 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authenticated/deliveries'
+import { Route as AuthenticatedIntegrationRouteImport } from './routes/_authenticated/integration'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
+import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
+import { Route as ApiPublicWebhooksMetaLeadgenRouteImport } from './routes/api/public/webhooks/meta-leadgen'
+import { Route as ApiPublicWebhooksStatusRouteImport } from './routes/api/public/webhooks/status'
+import { Route as ApiPublicAuthMetaCallbackRouteImport } from './routes/api/public/auth/meta/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeliveriesRoute = AuthenticatedDeliveriesRouteImport.update({
+  id: '/deliveries',
+  path: '/deliveries',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIntegrationRoute =
+  AuthenticatedIntegrationRouteImport.update({
+    id: '/integration',
+    path: '/integration',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardSelectAdAccountRoute =
+  AuthenticatedDashboardSelectAdAccountRouteImport.update({
+    id: '/select-ad-account',
+    path: '/select-ad-account',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const ApiPublicCronCapiDispatcherRoute =
+  ApiPublicCronCapiDispatcherRouteImport.update({
+    id: '/api/public/cron/capi-dispatcher',
+    path: '/api/public/cron/capi-dispatcher',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksMetaLeadgenRoute =
+  ApiPublicWebhooksMetaLeadgenRouteImport.update({
+    id: '/api/public/webhooks/meta-leadgen',
+    path: '/api/public/webhooks/meta-leadgen',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksStatusRoute = ApiPublicWebhooksStatusRouteImport.update({
+  id: '/api/public/webhooks/status',
+  path: '/api/public/webhooks/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAuthMetaCallbackRoute =
+  ApiPublicAuthMetaCallbackRouteImport.update({
+    id: '/api/public/auth/meta/callback',
+    path: '/api/public/auth/meta/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/deliveries': typeof AuthenticatedDeliveriesRoute
+  '/integration': typeof AuthenticatedIntegrationRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/deliveries': typeof AuthenticatedDeliveriesRoute
+  '/integration': typeof AuthenticatedIntegrationRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/deliveries': typeof AuthenticatedDeliveriesRoute
+  '/_authenticated/integration': typeof AuthenticatedIntegrationRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/deliveries'
+    | '/integration'
+    | '/leads'
+    | '/dashboard/select-ad-account'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/deliveries'
+    | '/integration'
+    | '/leads'
+    | '/dashboard/select-ad-account'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/deliveries'
+    | '/_authenticated/integration'
+    | '/_authenticated/leads'
+    | '/_authenticated/dashboard/select-ad-account'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
+  ApiPublicWebhooksMetaLeadgenRoute: typeof ApiPublicWebhooksMetaLeadgenRoute
+  ApiPublicWebhooksStatusRoute: typeof ApiPublicWebhooksStatusRoute
+  ApiPublicAuthMetaCallbackRoute: typeof ApiPublicAuthMetaCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +190,126 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/deliveries': {
+      id: '/_authenticated/deliveries'
+      path: '/deliveries'
+      fullPath: '/deliveries'
+      preLoaderRoute: typeof AuthenticatedDeliveriesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/integration': {
+      id: '/_authenticated/integration'
+      path: '/integration'
+      fullPath: '/integration'
+      preLoaderRoute: typeof AuthenticatedIntegrationRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/select-ad-account': {
+      id: '/_authenticated/dashboard/select-ad-account'
+      path: '/select-ad-account'
+      fullPath: '/dashboard/select-ad-account'
+      preLoaderRoute: typeof AuthenticatedDashboardSelectAdAccountRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/api/public/cron/capi-dispatcher': {
+      id: '/api/public/cron/capi-dispatcher'
+      path: '/api/public/cron/capi-dispatcher'
+      fullPath: '/api/public/cron/capi-dispatcher'
+      preLoaderRoute: typeof ApiPublicCronCapiDispatcherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/meta-leadgen': {
+      id: '/api/public/webhooks/meta-leadgen'
+      path: '/api/public/webhooks/meta-leadgen'
+      fullPath: '/api/public/webhooks/meta-leadgen'
+      preLoaderRoute: typeof ApiPublicWebhooksMetaLeadgenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/status': {
+      id: '/api/public/webhooks/status'
+      path: '/api/public/webhooks/status'
+      fullPath: '/api/public/webhooks/status'
+      preLoaderRoute: typeof ApiPublicWebhooksStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/auth/meta/callback': {
+      id: '/api/public/auth/meta/callback'
+      path: '/api/public/auth/meta/callback'
+      fullPath: '/api/public/auth/meta/callback'
+      preLoaderRoute: typeof ApiPublicAuthMetaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardSelectAdAccountRoute: typeof AuthenticatedDashboardSelectAdAccountRoute
+}
+
+const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
+  {
+    AuthenticatedDashboardSelectAdAccountRoute:
+      AuthenticatedDashboardSelectAdAccountRoute,
+  }
+
+const AuthenticatedDashboardRouteWithChildren =
+  AuthenticatedDashboardRoute._addFileChildren(
+    AuthenticatedDashboardRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+  AuthenticatedDeliveriesRoute: typeof AuthenticatedDeliveriesRoute
+  AuthenticatedIntegrationRoute: typeof AuthenticatedIntegrationRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+  AuthenticatedDeliveriesRoute: AuthenticatedDeliveriesRoute,
+  AuthenticatedIntegrationRoute: AuthenticatedIntegrationRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
+  ApiPublicWebhooksMetaLeadgenRoute: ApiPublicWebhooksMetaLeadgenRoute,
+  ApiPublicWebhooksStatusRoute: ApiPublicWebhooksStatusRoute,
+  ApiPublicAuthMetaCallbackRoute: ApiPublicAuthMetaCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
