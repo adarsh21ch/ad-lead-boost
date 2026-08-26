@@ -56,7 +56,8 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .inputValidator((data: { accountId: string }) => data)
   .handler(async ({ data, context }) => {
     const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
-    const token = await getOwnedAccountToken(context.supabase, data.accountId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
     const res = await fetch(
       `${graphUrl("me/adaccounts")}?fields=id,name,account_id&limit=100&access_token=${encodeURIComponent(token)}`,
     );
@@ -70,7 +71,8 @@ export const listMetaPixels = createServerFn({ method: "GET" })
   .inputValidator((data: { accountId: string; adAccountId: string }) => data)
   .handler(async ({ data, context }) => {
     const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
-    const token = await getOwnedAccountToken(context.supabase, data.accountId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
     const res = await fetch(
       `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100&access_token=${encodeURIComponent(token)}`,
     );
