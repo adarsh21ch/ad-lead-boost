@@ -46,7 +46,7 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
       `https://www.facebook.com/v21.0/dialog/oauth?client_id=${encodeURIComponent(appId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${encodeURIComponent(state)}` +
-      `&scope=ads_management,leads_retrieval`
+      `&scope=ads_management,business_management`
     );
   });
 
