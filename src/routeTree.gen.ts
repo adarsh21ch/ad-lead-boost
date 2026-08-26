@@ -21,6 +21,7 @@ import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
+import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test-event'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
 import { Route as ApiPublicWebhooksMetaLeadgenRouteImport } from './routes/api/public/webhooks/meta-leadgen'
 import { Route as ApiPublicWebhooksStatusRouteImport } from './routes/api/public/webhooks/status'
@@ -87,6 +88,11 @@ const AuthenticatedDashboardSelectAdAccountRoute =
     path: '/select-ad-account',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const ApiPublicTestEventRoute = ApiPublicTestEventRouteImport.update({
+  id: '/api/public/test-event',
+  path: '/api/public/test-event',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronCapiDispatcherRoute =
   ApiPublicCronCapiDispatcherRouteImport.update({
     id: '/api/public/cron/capi-dispatcher',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/auth/callback'
     | '/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/auth/callback'
     | '/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/dashboard'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads'
     | '/auth/callback'
     | '/_authenticated/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/_authenticated/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   DataDeletionRoute: typeof DataDeletionRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiPublicTestEventRoute: typeof ApiPublicTestEventRoute
   ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
   ApiPublicWebhooksMetaLeadgenRoute: typeof ApiPublicWebhooksMetaLeadgenRoute
   ApiPublicWebhooksStatusRoute: typeof ApiPublicWebhooksStatusRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardSelectAdAccountRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/api/public/test-event': {
+      id: '/api/public/test-event'
+      path: '/api/public/test-event'
+      fullPath: '/api/public/test-event'
+      preLoaderRoute: typeof ApiPublicTestEventRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/capi-dispatcher': {
       id: '/api/public/cron/capi-dispatcher'
       path: '/api/public/cron/capi-dispatcher'
@@ -396,6 +416,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataDeletionRoute: DataDeletionRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiPublicTestEventRoute: ApiPublicTestEventRoute,
   ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
   ApiPublicWebhooksMetaLeadgenRoute: ApiPublicWebhooksMetaLeadgenRoute,
   ApiPublicWebhooksStatusRoute: ApiPublicWebhooksStatusRoute,
