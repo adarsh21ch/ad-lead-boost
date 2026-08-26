@@ -134,3 +134,21 @@ export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 10
   const delivered = new Set((logs ?? []).map((l) => l.status_event_id));
   return events.filter((e) => !delivered.has(e.id));
 }
+
+export function assertLeadStatus(status: string): asserts status is LeadStatus {
+  if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
+    throw new Error(`Invalid status: ${status}`);
+  }
+}
+
+export async function getOwnedAccountToken(supabase: any, accountId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("id, meta_access_token_encrypted, status")
+    .eq("id", accountId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Account not found");
+  if (!data.meta_access_token_encrypted) throw new Error("Meta is not connected for this account");
+  return data.meta_access_token_encrypted as string;
+}

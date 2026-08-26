@@ -1,12 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { LEAD_STATUSES, graphUrl, deliverStatusEvent, type LeadStatus } from "./meta.server";
-
-function assertStatus(status: string): asserts status is LeadStatus {
-  if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
-    throw new Error(`Invalid status: ${status}`);
-  }
-}
+import { graphUrl, deliverStatusEvent, assertLeadStatus, getOwnedAccountToken } from "./meta.server";
 
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -54,17 +48,6 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
     );
   });
 
-async function getOwnedAccountToken(supabase: any, accountId: string) {
-  const { data, error } = await supabase
-    .from("accounts")
-    .select("id, meta_access_token_encrypted, status")
-    .eq("id", accountId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("Account not found");
-  if (!data.meta_access_token_encrypted) throw new Error("Meta is not connected for this account");
-  return data.meta_access_token_encrypted as string;
-}
 
 export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
