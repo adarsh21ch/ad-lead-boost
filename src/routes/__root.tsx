@@ -108,6 +108,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+// If a stale cached document is ever served after a redeploy, its bootstrap
+// data is missing and hydration dies with a blank screen. Reload once (bypassing
+// the cache) instead of leaving the user on an empty page.
+const STALE_DOCUMENT_RECOVERY = `
+(function () {
+  var KEY = "__tsr_stale_reload";
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      if (window.$_TSR || document.body.firstElementChild) {
+        try { sessionStorage.removeItem(KEY); } catch (e) {}
+        return;
+      }
+      try {
+        if (sessionStorage.getItem(KEY)) return;
+        sessionStorage.setItem(KEY, "1");
+      } catch (e) { return; }
+      location.reload();
+    }, 2500);
+  });
+})();
+`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
@@ -117,6 +139,7 @@ function RootShell({ children }: { children: ReactNode }) {
       <body>
         {children}
         <Scripts />
+        <script dangerouslySetInnerHTML={{ __html: STALE_DOCUMENT_RECOVERY }} />
       </body>
     </html>
   );
