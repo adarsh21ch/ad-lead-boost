@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -405,8 +405,8 @@ Content-Type: application/json
                     </TableHeader>
                     <TableBody>
                       {deliveries.map((row) => (
-                        <>
-                          <TableRow key={row.id}>
+                        <Fragment key={row.id}>
+                          <TableRow>
                             <TableCell className="text-xs">
                               {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
                             </TableCell>
@@ -435,7 +435,7 @@ Content-Type: application/json
                             </TableCell>
                           </TableRow>
                           {expanded === row.id && (
-                            <TableRow key={`${row.id}-detail`}>
+                            <TableRow>
                               <TableCell colSpan={5}>
                                 <pre className="overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">
                                   {JSON.stringify(row.meta_response, null, 2)}
@@ -443,7 +443,7 @@ Content-Type: application/json
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </Fragment>
                       ))}
                     </TableBody>
                   </Table>

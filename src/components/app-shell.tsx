@@ -9,7 +9,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/leads", label: "Leads" },
   { to: "/deliveries", label: "Deliveries" },
-  { to: "/integration", label: "Integration" },
+  { to: "/dashboard/integration", label: "Integration" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -39,7 +39,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={item.to}
               className={cn(
                 "block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
-                pathname.startsWith(item.to) && "bg-accent text-foreground",
+                (item.to === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname.startsWith(item.to)) && "bg-accent text-foreground",
               )}
             >
               {item.label}
