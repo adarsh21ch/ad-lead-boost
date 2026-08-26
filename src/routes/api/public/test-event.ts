@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/public/test-event")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: account, error: accErr } = await supabaseAdmin
           .from("accounts")
-          .select("id, status, meta_dataset_id, meta_access_token_encrypted")
+          .select("id, status, meta_dataset_id, meta_access_token_encrypted, meta_token_expires_at")
           .eq("owner_user_id", user.id)
           .order("created_at", { ascending: true })
           .limit(1)
@@ -43,6 +43,12 @@ export const Route = createFileRoute("/api/public/test-event")({
         }
         if (!account.meta_access_token_encrypted) {
           return json({ ok: false, error: "meta_not_connected" }, 409);
+        }
+        if (
+          account.meta_token_expires_at &&
+          new Date(account.meta_token_expires_at).getTime() < Date.now()
+        ) {
+          return json({ ok: false, error: "meta_token_expired" }, 409);
         }
 
         const { hashForMeta, decryptToken, graphUrl } = await import("@/lib/meta.server");
@@ -134,6 +140,12 @@ export const Route = createFileRoute("/api/public/test-event")({
           is_test: true,
           delivered_at: ok ? new Date().toISOString() : null,
         });
+
+        // Test events are one-shot: never leave them pending for the cron dispatcher.
+        await supabaseAdmin
+          .from("status_events")
+          .update({ dispatch_status: ok ? "delivered" : "abandoned" })
+          .eq("id", statusEvent.id);
 
         return json(
           {
