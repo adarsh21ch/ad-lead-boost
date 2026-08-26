@@ -183,7 +183,13 @@ Content-Type: application/json
             </CardHeader>
             <CardContent>
               <Button asChild>
-                <Link to="/dashboard/select-ad-account">Choose ad account &amp; dataset</Link>
+                <Link
+                  to="/dashboard/select-ad-account"
+                  search={account ? { account: account.id } : undefined}
+                  disabled={!account}
+                >
+                  Choose ad account &amp; dataset
+                </Link>
               </Button>
             </CardContent>
           </Card>

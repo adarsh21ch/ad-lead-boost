@@ -258,12 +258,16 @@ export async function encryptToken(admin: AdminClient, token: string): Promise<s
   return data as string;
 }
 
-/** Decrypts a stored token. Legacy plaintext rows are returned as-is (decrypt_token returns null). */
+/** Decrypts a stored token. Explicitly recognizes legacy Meta plaintext tokens. */
 export async function decryptToken(admin: AdminClient, stored: string): Promise<string> {
   const key = process.env["TOKEN_ENCRYPTION_KEY"];
-  if (!key) return stored;
+  if (!key) throw new Error("TOKEN_ENCRYPTION_KEY is not configured");
   const { data, error } = await admin.rpc("decrypt_token", { p_encrypted: stored, p_key: key });
-  if (error || data == null) return stored;
+  if (error) throw new Error(`Meta token decryption failed: ${error.message}`);
+  if (data == null) {
+    if (stored.startsWith("EAA")) return stored;
+    throw new Error("Meta token decryption failed: stored value is not valid encrypted token data");
+  }
   return data as string;
 }
 
