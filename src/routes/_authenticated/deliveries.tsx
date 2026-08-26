@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listDeliveryLogs } from "@/lib/adspro.functions";
@@ -61,9 +61,16 @@ function DeliveriesPage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !logs?.length ? (
-          <p className="text-sm text-muted-foreground">
-            No deliveries yet. Events appear here once the dispatcher sends them to Meta.
-          </p>
+          <div className="rounded-md border p-6 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">No deliveries yet</p>
+            <p className="mt-1">
+              Every lead-status event sent to Meta's Conversions API shows up here. Send a test
+              event to see the full delivery path end to end.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link to="/dashboard/integration">Send a test event</Link>
+            </Button>
+          </div>
         ) : (
           <div className="rounded-md border">
             <Table>

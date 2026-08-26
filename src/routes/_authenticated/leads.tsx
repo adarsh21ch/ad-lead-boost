@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listLeads, setLeadStatus } from "@/lib/adspro.functions";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/leads")({
@@ -69,9 +70,16 @@ function LeadsPage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !leads?.length ? (
-          <p className="text-sm text-muted-foreground">
-            No leads yet. Leads appear here once Meta sends them to the leadgen webhook.
-          </p>
+          <div className="rounded-md border p-6 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">No leads yet</p>
+            <p className="mt-1">
+              Leads land here automatically once Meta delivers your Lead Ads form submissions to
+              the AdsPro webhook. Check your webhook setup if you expect leads already.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link to="/dashboard/integration">Open Integration setup</Link>
+            </Button>
+          </div>
         ) : (
           <div className="rounded-md border">
             <Table>
