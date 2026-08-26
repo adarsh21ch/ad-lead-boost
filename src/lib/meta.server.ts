@@ -78,6 +78,7 @@ export async function deliverStatusEvent(
   if (!account.meta_dataset_id || !account.meta_access_token_encrypted) {
     return fail("account_missing_dataset_or_token");
   }
+  const accessToken = await decryptToken(admin, account.meta_access_token_encrypted);
 
   const userData: Record<string, unknown> = {};
   if (lead?.phone_hash) userData["ph"] = [lead.phone_hash];
@@ -104,7 +105,7 @@ export async function deliverStatusEvent(
 
   try {
     const res = await fetch(
-      `${graphUrl(`${account.meta_dataset_id}/events`)}?access_token=${encodeURIComponent(account.meta_access_token_encrypted)}`,
+      `${graphUrl(`${account.meta_dataset_id}/events`)}?access_token=${encodeURIComponent(accessToken)}`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -164,14 +165,37 @@ export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 10
   });
 }
 
-export async function getOwnedAccountToken(supabase: any, accountId: string): Promise<string> {
-  const { data, error } = await supabase
+/** Encrypts a token with pgcrypto for at-rest storage. Server-only; never call from the client. */
+export async function encryptToken(admin: AdminClient, token: string): Promise<string> {
+  const key = process.env["TOKEN_ENCRYPTION_KEY"];
+  if (!key) throw new Error("TOKEN_ENCRYPTION_KEY is not configured");
+  const { data, error } = await admin.rpc("encrypt_token", { p_token: token, p_key: key });
+  if (error || !data) throw error ?? new Error("token_encryption_failed");
+  return data as string;
+}
+
+/** Decrypts a stored token. Legacy plaintext rows are returned as-is (decrypt_token returns null). */
+export async function decryptToken(admin: AdminClient, stored: string): Promise<string> {
+  const key = process.env["TOKEN_ENCRYPTION_KEY"];
+  if (!key) return stored;
+  const { data, error } = await admin.rpc("decrypt_token", { p_encrypted: stored, p_key: key });
+  if (error || data == null) return stored;
+  return data as string;
+}
+
+/** Verifies the user owns the account, then returns the DECRYPTED Meta token. Server-only. */
+export async function getOwnedAccountToken(
+  admin: AdminClient,
+  accountId: string,
+  userId: string,
+): Promise<string> {
+  const { data, error } = await admin
     .from("accounts")
-    .select("id, meta_access_token_encrypted, status")
+    .select("id, owner_user_id, meta_access_token_encrypted")
     .eq("id", accountId)
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Account not found");
+  if (!data || data.owner_user_id !== userId) throw new Error("Account not found");
   if (!data.meta_access_token_encrypted) throw new Error("Meta is not connected for this account");
-  return data.meta_access_token_encrypted as string;
+  return decryptToken(admin, data.meta_access_token_encrypted);
 }
