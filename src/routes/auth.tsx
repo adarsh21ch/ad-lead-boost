@@ -9,6 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
+const AUTH_TIMEOUT_MS = 15_000;
+
+async function withAuthTimeout<T>(promise: Promise<T>, action: string): Promise<T> {
+  let timeoutId: ReturnType<typeof window.setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(`${action} is taking too long. Please check your connection and try again.`));
+    }, AUTH_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
+}
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
@@ -31,6 +48,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [callbackMessage, setCallbackMessage] = useState("Completing sign in…");
 
   const isCallback = location.pathname === "/auth/callback";
@@ -70,21 +88,41 @@ function AuthPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      setFormError("Enter your email and password.");
+      return;
+    }
+
+    setFormError(null);
     setLoading(true);
     try {
       if (mode === "sign_in") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withAuthTimeout(
+          supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+          "Sign in",
+        );
         if (error) throw error;
-        navigate({ to: "/dashboard" });
+        await navigate({ to: "/dashboard", replace: true });
       } else {
-        await registerWithEmailFn({ data: { email, password } });
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        await withAuthTimeout(
+          registerWithEmailFn({ data: { email: normalizedEmail, password } }),
+          "Sign up",
+        );
+        const { error } = await withAuthTimeout(
+          supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+          "Sign in",
+        );
         if (error) throw error;
         toast.success("Account created. You're signed in.");
-        navigate({ to: "/dashboard" });
+        await navigate({ to: "/dashboard", replace: true });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Authentication failed");
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -126,7 +164,10 @@ function AuthPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFormError(null);
+                }}
                 autoComplete="email"
               />
             </div>
@@ -138,10 +179,14 @@ function AuthPage() {
                 required
                 minLength={6}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormError(null);
+                }}
                 autoComplete={mode === "sign_in" ? "current-password" : "new-password"}
               />
             </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Please wait…" : mode === "sign_in" ? "Sign in" : "Sign up"}
             </Button>
