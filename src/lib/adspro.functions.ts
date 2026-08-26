@@ -257,7 +257,7 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
       .select(
         "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status)",
       )
-      .order("id", { ascending: false })
+      .order("created_at", { ascending: false, referencedTable: "status_events" })
       .limit(20);
     if (error) throw error;
     return (data ?? []).map((row) => {
