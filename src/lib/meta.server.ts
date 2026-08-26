@@ -118,9 +118,15 @@ export function parseMetaOAuthState(state: string): string | null {
 
 type AdminClient = SupabaseClient<any>;
 
+/** Retry backoff per failed attempt: 1min, 5min, 30min, 2hr, 6hr, 24hr. */
+export const RETRY_BACKOFF_MINUTES = [1, 5, 30, 120, 360, 1440] as const;
+export const MAX_DELIVERY_ATTEMPTS = RETRY_BACKOFF_MINUTES.length;
+
 /**
- * Sends one status_events row to Meta's Conversions API and records the
- * outcome in capi_delivery_logs. Returns a small result DTO.
+ * Sends one status_events row to Meta's Conversions API, records the attempt in
+ * capi_delivery_logs (one row per attempt, never overwritten), and advances the
+ * event's dispatch_status / next_attempt_at with capped exponential backoff.
+ * After MAX_DELIVERY_ATTEMPTS failures the event becomes 'abandoned'.
  */
 export async function deliverStatusEvent(
   admin: AdminClient,
@@ -131,31 +137,92 @@ export async function deliverStatusEvent(
     status: string;
     created_at: string;
   },
-): Promise<{ ok: boolean; httpStatus: number | null; error?: string }> {
+): Promise<{
+  ok: boolean;
+  httpStatus: number | null;
+  error?: string;
+  attempt: number;
+  dispatchStatus: "delivered" | "pending" | "abandoned";
+}> {
   const eventName = STATUS_TO_META_EVENT[statusEvent.status as LeadStatus] ?? "Lead";
+  const attempt = (await getAttemptCount(admin, statusEvent.id)) + 1;
+
   const [{ data: lead }, { data: account }] = await Promise.all([
     admin.from("leads").select("*").eq("id", statusEvent.lead_id).maybeSingle(),
     admin.from("accounts").select("*").eq("id", statusEvent.account_id).maybeSingle(),
   ]);
 
-  const fail = async (error: string, httpStatus: number | null = null, metaResponse: unknown = null) => {
-    const retryCount = await getRetryCount(admin, statusEvent.id);
+  const logAttempt = async (
+    httpStatus: number | null,
+    metaResponse: unknown,
+    delivered: boolean,
+  ) => {
     await admin.from("capi_delivery_logs").insert({
       status_event_id: statusEvent.id,
       meta_event_name: eventName,
       http_status: httpStatus,
-      meta_response: metaResponse ?? { error },
-      retry_count: retryCount,
-      delivered_at: null,
+      meta_response: metaResponse,
+      // retry_count is the 0-based attempt index for this log row.
+      retry_count: attempt - 1,
+      delivered_at: delivered ? new Date().toISOString() : null,
+      is_test: Boolean((lead as { is_test?: boolean } | null)?.is_test),
     });
-    return { ok: false, httpStatus, error };
+  };
+
+  const succeed = async (httpStatus: number, metaResponse: unknown) => {
+    await logAttempt(httpStatus, metaResponse, true);
+    await admin
+      .from("status_events")
+      .update({ dispatch_status: "delivered" })
+      .eq("id", statusEvent.id);
+    return { ok: true as const, httpStatus, attempt, dispatchStatus: "delivered" as const };
+  };
+
+  const fail = async (
+    error: string,
+    httpStatus: number | null = null,
+    metaResponse: unknown = null,
+  ) => {
+    await logAttempt(httpStatus, metaResponse ?? { error }, false);
+    const abandoned = attempt >= MAX_DELIVERY_ATTEMPTS;
+    const delayMinutes =
+      RETRY_BACKOFF_MINUTES[Math.min(attempt, MAX_DELIVERY_ATTEMPTS) - 1] ?? 1440;
+    await admin
+      .from("status_events")
+      .update(
+        abandoned
+          ? { dispatch_status: "abandoned" }
+          : {
+              dispatch_status: "pending",
+              next_attempt_at: new Date(Date.now() + delayMinutes * 60_000).toISOString(),
+            },
+      )
+      .eq("id", statusEvent.id);
+    if (abandoned) {
+      console.error(
+        `[capi-dispatcher] event ${statusEvent.id} abandoned after ${attempt} attempts: ${error}`,
+      );
+    }
+    return {
+      ok: false as const,
+      httpStatus,
+      error,
+      attempt,
+      dispatchStatus: (abandoned ? "abandoned" : "pending") as "abandoned" | "pending",
+    };
   };
 
   if (!account) return fail("account_not_found");
   if (!account.meta_dataset_id || !account.meta_access_token_encrypted) {
     return fail("account_missing_dataset_or_token");
   }
-  const accessToken = await decryptToken(admin, account.meta_access_token_encrypted);
+
+  let accessToken: string;
+  try {
+    accessToken = await decryptToken(admin, account.meta_access_token_encrypted);
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : "token_decrypt_failed");
+  }
 
   const userData: Record<string, unknown> = {};
   if (lead?.phone_hash) userData["ph"] = [lead.phone_hash];
@@ -190,24 +257,20 @@ export async function deliverStatusEvent(
       },
     );
     const json = await res.json().catch(() => null);
-    const retryCount = await getRetryCount(admin, statusEvent.id);
-    await admin.from("capi_delivery_logs").insert({
-      status_event_id: statusEvent.id,
-      meta_event_name: eventName,
-      http_status: res.status,
-      meta_response: json,
-      retry_count: retryCount,
-      delivered_at: res.ok ? new Date().toISOString() : null,
-    });
-    return res.ok
-      ? { ok: true, httpStatus: res.status }
-      : { ok: false, httpStatus: res.status, error: "meta_error" };
+    const metaError = (json as { error?: unknown } | null)?.error;
+    if (!res.ok || metaError) {
+      console.error(
+        `[capi-dispatcher] event ${statusEvent.id} attempt ${attempt} failed status=${res.status} body=${JSON.stringify(json)}`,
+      );
+      return fail("meta_error", res.status, json);
+    }
+    return succeed(res.status, json);
   } catch (err) {
     return fail(err instanceof Error ? err.message : "network_error");
   }
 }
 
-async function getRetryCount(admin: AdminClient, statusEventId: string) {
+async function getAttemptCount(admin: AdminClient, statusEventId: string) {
   const { data } = await admin
     .from("capi_delivery_logs")
     .select("id")
@@ -215,38 +278,23 @@ async function getRetryCount(admin: AdminClient, statusEventId: string) {
   return data?.length ?? 0;
 }
 
-/** Finds status_events rows with no capi_delivery_logs row yet. */
-export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 100) {
-  // Scan a wide window of recent events oldest-first, then keep only the ones
-  // with no successful delivery and fewer than 3 attempts. The 7-day floor
-  // stops permanently-failed old rows from clogging the scan window.
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: events, error } = await admin
+/**
+ * Candidates for delivery: pending events whose next_attempt_at has come due,
+ * oldest first. 'delivered' and 'abandoned' events are never re-sent.
+ */
+export async function findDueStatusEvents(admin: AdminClient, limit = 50) {
+  const { data, error } = await admin
     .from("status_events")
     .select("id, account_id, lead_id, status, created_at")
-    .gte("created_at", since)
+    .eq("dispatch_status", "pending")
+    .lte("next_attempt_at", new Date().toISOString())
     .order("created_at", { ascending: true })
-    .limit(Math.max(limit * 5, 500));
-  if (error || !events?.length) return [];
-  const ids = events.map((e) => e.id);
-  const { data: logs } = await admin
-    .from("capi_delivery_logs")
-    .select("status_event_id, delivered_at, retry_count")
-    .in("status_event_id", ids);
-  const logState = new Map<string, { delivered: boolean; attempts: number }>();
-  for (const log of logs ?? []) {
-    const current = logState.get(log.status_event_id) ?? { delivered: false, attempts: 0 };
-    logState.set(log.status_event_id, {
-      delivered: current.delivered || Boolean(log.delivered_at),
-      attempts: Math.max(current.attempts, (log.retry_count ?? 0) + 1),
-    });
+    .limit(limit);
+  if (error) {
+    console.error("[capi-dispatcher] failed to load due events", error);
+    return [];
   }
-  return events
-    .filter((event) => {
-      const state = logState.get(event.id);
-      return !state?.delivered && (state?.attempts ?? 0) < 3;
-    })
-    .slice(0, limit);
+  return data ?? [];
 }
 
 /** Encrypts a token with pgcrypto for at-rest storage. Server-only; never call from the client. */
