@@ -79,6 +79,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
       };
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
+      console.error("[select-ad-account] ad-account discovery failed", details);
       if (details.code === 190) {
         const { error: statusError } = await context.supabase
           .from("accounts")
@@ -116,8 +117,10 @@ export const listMetaPixels = createServerFn({ method: "GET" })
         .filter((result): result is PromiseRejectedResult => result.status === "rejected")
         .map((result) => getMetaGraphErrorDetails(result.reason));
       const pixels = new Map<string, { id: string; name: string }>();
+      const rawResponses: string[] = [];
       for (const result of settled) {
         if (result.status !== "fulfilled") continue;
+        rawResponses.push(JSON.stringify(result.value));
         for (const pixel of (result.value.data ?? []) as Array<{ id: string; name?: string }>) {
           if (pixel.id) pixels.set(pixel.id, { id: pixel.id, name: pixel.name ?? `Dataset ${pixel.id}` });
         }
@@ -145,9 +148,11 @@ export const listMetaPixels = createServerFn({ method: "GET" })
           },
         };
       }
-      return { ok: true as const, data: [...pixels.values()], warnings: errors };
+      return { ok: true as const, data: [...pixels.values()], warnings: errors, rawResponses };
     } catch (error) {
-      return { ok: false as const, error: getMetaGraphErrorDetails(error) };
+      const details = getMetaGraphErrorDetails(error);
+      console.error("[select-ad-account] dataset discovery failed", details);
+      return { ok: false as const, error: details };
     }
   });
 

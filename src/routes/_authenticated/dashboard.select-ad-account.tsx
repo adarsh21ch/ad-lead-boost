@@ -225,7 +225,15 @@ function SelectAdAccountPage() {
                         </div>
                       </div>
                     ) : pixels.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No datasets or pixels were found for this ad account or its Business portfolio.</p>
+                      <div>
+                        <p className="text-sm text-muted-foreground">No datasets or pixels were found for this ad account or its Business portfolio.</p>
+                        {pixelsQuery.data?.ok ? (
+                          <details className="mt-3 text-xs">
+                            <summary className="cursor-pointer font-medium">Raw Meta response</summary>
+                            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3">{pixelsQuery.data.rawResponses.join("\n\n")}</pre>
+                          </details>
+                        ) : null}
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {pixelsQuery.data?.ok && pixelsQuery.data.warnings.length > 0 && !dismissedPixelError && pixelsQuery.data.warnings[0] ? (
