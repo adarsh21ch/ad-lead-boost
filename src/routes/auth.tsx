@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const AUTH_TIMEOUT_MS = 15_000;
 
 async function withAuthTimeout<T>(promise: Promise<T>, action: string): Promise<T> {
-  let timeoutId: ReturnType<typeof window.setTimeout> | undefined;
+  let timeoutId: number | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = window.setTimeout(() => {
       reject(new Error(`${action} is taking too long. Please check your connection and try again.`));
