@@ -55,14 +55,14 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string }) => data)
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet } = await import("./meta.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-    const res = await fetch(
-      `${graphUrl("me/adaccounts")}?fields=id,name,account_id,account_status&limit=100&access_token=${encodeURIComponent(token)}`,
+    const json = await graphGet(
+      `${graphUrl("me/adaccounts")}?fields=id,name,account_id,account_status&limit=100`,
+      token,
+      "me/adaccounts",
     );
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error?.message ?? "Failed to list ad accounts");
     return (json.data ?? []) as Array<{
       id: string;
       name: string;
@@ -75,14 +75,14 @@ export const listMetaPixels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string; adAccountId: string }) => data)
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet } = await import("./meta.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-    const res = await fetch(
-      `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100&access_token=${encodeURIComponent(token)}`,
+    const json = await graphGet(
+      `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100`,
+      token,
+      `${data.adAccountId}/adspixels`,
     );
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error?.message ?? "Failed to list datasets");
     return (json.data ?? []) as Array<{ id: string; name: string }>;
   });
 

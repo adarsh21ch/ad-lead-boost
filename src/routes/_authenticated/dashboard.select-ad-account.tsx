@@ -24,7 +24,37 @@ export const Route = createFileRoute("/_authenticated/dashboard/select-ad-accoun
     ],
   }),
   component: SelectAdAccountPage,
+  errorComponent: SelectAdAccountError,
 });
+
+function errorText(err: unknown) {
+  return err instanceof Error ? err.message : String(err ?? "Unknown error");
+}
+
+function ErrorPanel({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+      <p className="text-sm font-semibold text-destructive">{title}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-destructive/90">
+        {message}
+      </p>
+    </div>
+  );
+}
+
+function SelectAdAccountError({ error }: { error: unknown }) {
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-3xl space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight">Select ad account</h1>
+        <ErrorPanel title="This page failed to load" message={errorText(error)} />
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+      </div>
+    </AppShell>
+  );
+}
 
 function SelectAdAccountPage() {
   const navigate = useNavigate();
@@ -41,6 +71,7 @@ function SelectAdAccountPage() {
     queryKey: ["meta-ad-accounts", accountId],
     queryFn: () => listMetaAdAccountsFn({ data: { accountId } }),
     enabled: !!accountId,
+    retry: false,
   });
 
   const pixelsQuery = useQuery({
@@ -50,6 +81,7 @@ function SelectAdAccountPage() {
       return listMetaPixelsFn({ data: { accountId, adAccountId } });
     },
     enabled: !!accountId && !!adAccountId,
+    retry: false,
   });
 
   const save = async (datasetId: string) => {
@@ -60,11 +92,13 @@ function SelectAdAccountPage() {
       toast.success("Ad account and dataset saved");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save selection");
+      toast.error(errorText(err));
     } finally {
       setSaving(false);
     }
   };
+
+  const adAccounts = adAccountsQuery.data ?? [];
 
   return (
     <AppShell>
@@ -77,22 +111,34 @@ function SelectAdAccountPage() {
         </div>
 
         {!accountId ? (
-          <p className="text-sm text-destructive">Missing account parameter.</p>
-        ) : adAccountsQuery.isLoading ? (
+          <ErrorPanel
+            title="Missing account parameter"
+            message="Open this page from the dashboard's “Choose ad account & dataset” button."
+          />
+        ) : adAccountsQuery.isPending ? (
           <p className="text-sm text-muted-foreground">Loading ad accounts…</p>
-        ) : adAccountsQuery.error ? (
-          <p className="text-sm text-destructive">
-            {adAccountsQuery.error instanceof Error
-              ? adAccountsQuery.error.message
-              : "Failed to load ad accounts"}
-          </p>
+        ) : adAccountsQuery.isError ? (
+          <div className="space-y-3">
+            <ErrorPanel
+              title="Meta rejected the ad-accounts request"
+              message={errorText(adAccountsQuery.error)}
+            />
+            <Button variant="outline" onClick={() => adAccountsQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        ) : adAccounts.length === 0 ? (
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-medium">No ad accounts found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The Facebook account you connected must be an admin of at least one ad account.
+              Check permissions in Meta Business Settings, then reconnect.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-3">
-            {(adAccountsQuery.data ?? []).map((aa) => (
-              <Card
-                key={aa.id}
-                className={adAccountId === aa.id ? "border-primary" : undefined}
-              >
+            {adAccounts.map((aa) => (
+              <Card key={aa.id} className={adAccountId === aa.id ? "border-primary" : undefined}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -111,11 +157,22 @@ function SelectAdAccountPage() {
                 {adAccountId === aa.id && (
                   <CardContent className="space-y-2 border-t pt-4">
                     <p className="text-sm font-medium">Pick a dataset (pixel):</p>
-                    {pixelsQuery.isLoading ? (
+                    {pixelsQuery.isPending ? (
                       <p className="text-sm text-muted-foreground">Loading datasets…</p>
+                    ) : pixelsQuery.isError ? (
+                      <div className="space-y-2">
+                        <ErrorPanel
+                          title="Meta rejected the datasets request"
+                          message={errorText(pixelsQuery.error)}
+                        />
+                        <Button variant="outline" size="sm" onClick={() => pixelsQuery.refetch()}>
+                          Retry
+                        </Button>
+                      </div>
                     ) : (pixelsQuery.data ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No datasets found for this ad account.
+                        No datasets (pixels) found for this ad account. Create one in Meta Events
+                        Manager, then retry.
                       </p>
                     ) : (
                       <div className="space-y-2">
@@ -139,11 +196,6 @@ function SelectAdAccountPage() {
                 )}
               </Card>
             ))}
-            {(adAccountsQuery.data ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No ad accounts available for this Meta login.
-              </p>
-            )}
           </div>
         )}
       </div>

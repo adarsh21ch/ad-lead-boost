@@ -20,6 +20,7 @@ import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedIntegrationRouteImport } from './routes/_authenticated/integration'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
 import { Route as ApiPublicWebhooksMetaLeadgenRouteImport } from './routes/api/public/webhooks/meta-leadgen'
@@ -81,6 +82,12 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthenticatedDashboardIndexRoute =
+  AuthenticatedDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const AuthenticatedDashboardSelectAdAccountRoute =
   AuthenticatedDashboardSelectAdAccountRouteImport.update({
     id: '/select-ad-account',
@@ -123,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
   '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
@@ -134,12 +142,12 @@ export interface FileRoutesByTo {
   '/data-deletion': typeof DataDeletionRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
-  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/deliveries': typeof AuthenticatedDeliveriesRoute
   '/integration': typeof AuthenticatedIntegrationRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
   '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
   '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/auth/callback'
     | '/dashboard/select-ad-account'
+    | '/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
     | '/api/public/webhooks/status'
@@ -189,12 +199,12 @@ export interface FileRouteTypes {
     | '/data-deletion'
     | '/privacy'
     | '/terms'
-    | '/dashboard'
     | '/deliveries'
     | '/integration'
     | '/leads'
     | '/auth/callback'
     | '/dashboard/select-ad-account'
+    | '/dashboard'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
     | '/api/public/webhooks/status'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads'
     | '/auth/callback'
     | '/_authenticated/dashboard/select-ad-account'
+    | '/_authenticated/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
     | '/api/public/webhooks/status'
@@ -311,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_authenticated/dashboard/': {
+      id: '/_authenticated/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/_authenticated/dashboard/select-ad-account': {
       id: '/_authenticated/dashboard/select-ad-account'
       path: '/select-ad-account'
@@ -351,12 +369,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardSelectAdAccountRoute: typeof AuthenticatedDashboardSelectAdAccountRoute
+  AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
 }
 
 const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
     AuthenticatedDashboardSelectAdAccountRoute:
       AuthenticatedDashboardSelectAdAccountRoute,
+    AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   }
 
 const AuthenticatedDashboardRouteWithChildren =

@@ -14,6 +14,43 @@ export function graphUrl(path: string): string {
   return `https://graph.facebook.com/${GRAPH_VERSION}/${path}`;
 }
 
+/**
+ * GETs a Graph endpoint with the token in the Authorization header, logs the
+ * full response server-side, and throws an Error whose message carries Meta's
+ * message, code and fbtrace_id so the UI can display it.
+ */
+export async function graphGet(
+  url: string,
+  accessToken: string,
+  label: string,
+): Promise<{ data?: unknown[]; [k: string]: unknown }> {
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  } catch (err) {
+    console.error(`[meta:${label}] network failure`, err);
+    throw new Error(`Could not reach Meta (${label}).`);
+  }
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* non-JSON body */
+  }
+  console.error(`[meta:${label}] status=${res.status} body=${text.slice(0, 4000)}`);
+  if (!res.ok || json?.error) {
+    const e = json?.error ?? {};
+    const parts = [
+      e.message ?? `HTTP ${res.status}`,
+      e.code != null ? `code ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ""}` : null,
+      e.fbtrace_id ? `fbtrace_id ${e.fbtrace_id}` : null,
+    ].filter(Boolean);
+    throw new Error(`Meta API error on ${label}: ${parts.join(" · ")}`);
+  }
+  return json ?? {};
+}
+
 export function getMetaRedirectUri(requestUrl?: string): string {
   const configured = process.env["META_OAUTH_REDIRECT_URI"];
   if (configured) return configured;
