@@ -14,6 +14,37 @@ export function graphUrl(path: string): string {
   return `https://graph.facebook.com/${GRAPH_VERSION}/${path}`;
 }
 
+export type MetaGraphErrorDetails = {
+  message: string;
+  code: number | null;
+  errorSubcode: number | null;
+  fbtraceId: string | null;
+  httpStatus: number | null;
+  rawResponse: string | null;
+};
+
+export class MetaGraphError extends Error {
+  readonly details: MetaGraphErrorDetails;
+
+  constructor(details: MetaGraphErrorDetails) {
+    super(details.message);
+    this.name = "MetaGraphError";
+    this.details = details;
+  }
+}
+
+export function getMetaGraphErrorDetails(error: unknown): MetaGraphErrorDetails {
+  if (error instanceof MetaGraphError) return error.details;
+  return {
+    message: error instanceof Error ? error.message : String(error ?? "Unknown error"),
+    code: null,
+    errorSubcode: null,
+    fbtraceId: null,
+    httpStatus: null,
+    rawResponse: null,
+  };
+}
+
 /**
  * GETs a Graph endpoint with the token in the Authorization header, logs the
  * full response server-side, and throws an Error whose message carries Meta's
@@ -28,8 +59,15 @@ export async function graphGet(
   try {
     res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   } catch (err) {
-    console.error(`[meta:${label}] network failure`, err);
-    throw new Error(`Could not reach Meta (${label}).`);
+    console.error(`[select-ad-account] [${label}] network failure`, err);
+    throw new MetaGraphError({
+      message: `Could not reach Meta (${label}).`,
+      code: null,
+      errorSubcode: null,
+      fbtraceId: null,
+      httpStatus: null,
+      rawResponse: null,
+    });
   }
   const text = await res.text();
   let json: any = null;
@@ -38,15 +76,17 @@ export async function graphGet(
   } catch {
     /* non-JSON body */
   }
-  console.error(`[meta:${label}] status=${res.status} body=${text.slice(0, 4000)}`);
   if (!res.ok || json?.error) {
+    console.error(`[select-ad-account] [${label}] status=${res.status} body=${text}`);
     const e = json?.error ?? {};
-    const parts = [
-      e.message ?? `HTTP ${res.status}`,
-      e.code != null ? `code ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ""}` : null,
-      e.fbtrace_id ? `fbtrace_id ${e.fbtrace_id}` : null,
-    ].filter(Boolean);
-    throw new Error(`Meta API error on ${label}: ${parts.join(" · ")}`);
+    throw new MetaGraphError({
+      message: e.message ?? `Meta returned HTTP ${res.status} for ${label}`,
+      code: typeof e.code === "number" ? e.code : null,
+      errorSubcode: typeof e.error_subcode === "number" ? e.error_subcode : null,
+      fbtraceId: typeof e.fbtrace_id === "string" ? e.fbtrace_id : null,
+      httpStatus: res.status,
+      rawResponse: text,
+    });
   }
   return json ?? {};
 }
@@ -235,11 +275,12 @@ export async function getOwnedAccountToken(
 ): Promise<string> {
   const { data, error } = await admin
     .from("accounts")
-    .select("id, owner_user_id, meta_access_token_encrypted")
+    .select("id, owner_user_id, status, meta_access_token_encrypted")
     .eq("id", accountId)
     .maybeSingle();
   if (error) throw error;
   if (!data || data.owner_user_id !== userId) throw new Error("Account not found");
+  if (data.status !== "active") throw new Error("This Meta connection is not active");
   if (!data.meta_access_token_encrypted) throw new Error("Meta is not connected for this account");
   return decryptToken(admin, data.meta_access_token_encrypted);
 }
