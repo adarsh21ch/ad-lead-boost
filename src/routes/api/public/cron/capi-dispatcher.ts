@@ -13,15 +13,48 @@ export const Route = createFileRoute("/api/public/cron/capi-dispatcher")({
 });
 
 async function runDispatcher(request: Request) {
-  const secret = process.env["LOVABLE_CRON_SECRET"];
+  const accepted = [process.env["CAPI_CRON_SECRET"], process.env["LOVABLE_CRON_SECRET"]].filter(
+    (v): v is string => Boolean(v),
+  );
   const auth = request.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!secret || token !== secret) {
+  if (!token || !accepted.includes(token)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { deliverStatusEvent, findDueStatusEvents } = await import("@/lib/meta.server");
+
+  // Overlap guard: only one dispatcher run at a time. A second concurrent
+  // invocation returns immediately instead of re-sending the same events.
+  const { data: gotLock, error: lockError } = await supabaseAdmin.rpc("capi_dispatcher_try_lock");
+  if (lockError) {
+    console.error("[capi-dispatcher] advisory lock rpc failed", lockError);
+    return new Response(JSON.stringify({ skipped: true, reason: "lock_error" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  if (!gotLock) {
+    return new Response(JSON.stringify({ skipped: true, reason: "already_running" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  try {
+    return await dispatchBatch(supabaseAdmin, findDueStatusEvents, deliverStatusEvent);
+  } finally {
+    const { error: unlockError } = await supabaseAdmin.rpc("capi_dispatcher_unlock");
+    if (unlockError) console.error("[capi-dispatcher] advisory unlock failed", unlockError);
+  }
+}
+
+async function dispatchBatch(
+  supabaseAdmin: any,
+  findDueStatusEvents: any,
+  deliverStatusEvent: any,
+) {
   const due = await findDueStatusEvents(supabaseAdmin, 50);
 
   const results: Array<{
