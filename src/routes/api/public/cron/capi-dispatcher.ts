@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Scheduled dispatcher — call every 1-2 minutes (Supabase Cron / external
-// scheduler). Delivers queued status_events to Meta's Conversions API.
-// Auth: `Authorization: Bearer <LOVABLE_CRON_SECRET>`.
+// Scheduled dispatcher — runs every 2 minutes (Supabase pg_cron + pg_net).
+// Delivers queued status_events to Meta's Conversions API.
+// Auth: `Authorization: Bearer <CAPI_CRON_SECRET>` (legacy LOVABLE_CRON_SECRET
+// is also accepted).
 export const Route = createFileRoute("/api/public/cron/capi-dispatcher")({
   server: {
     handlers: {
@@ -23,39 +24,29 @@ async function runDispatcher(request: Request) {
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { deliverStatusEvent, findDueStatusEvents } = await import("@/lib/meta.server");
+  const { deliverStatusEvent } = await import("@/lib/meta.server");
 
-  // Overlap guard: only one dispatcher run at a time. A second concurrent
-  // invocation returns immediately instead of re-sending the same events.
-  const { data: gotLock, error: lockError } = await supabaseAdmin.rpc("capi_dispatcher_try_lock");
-  if (lockError) {
-    console.error("[capi-dispatcher] advisory lock rpc failed", lockError);
-    return new Response(JSON.stringify({ skipped: true, reason: "lock_error" }), {
+  // Overlap guard: claim due events atomically with FOR UPDATE SKIP LOCKED and
+  // push next_attempt_at forward, so a second concurrent run picks up a
+  // disjoint batch and can never double-send the same event.
+  const { data: claimed, error: claimError } = await supabaseAdmin.rpc("claim_due_status_events", {
+    p_limit: 50,
+  });
+  if (claimError) {
+    console.error("[capi-dispatcher] claim failed", claimError);
+    return new Response(JSON.stringify({ processed: 0, error: "claim_failed" }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
   }
-  if (!gotLock) {
-    return new Response(JSON.stringify({ skipped: true, reason: "already_running" }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  }
 
-  try {
-    return await dispatchBatch(supabaseAdmin, findDueStatusEvents, deliverStatusEvent);
-  } finally {
-    const { error: unlockError } = await supabaseAdmin.rpc("capi_dispatcher_unlock");
-    if (unlockError) console.error("[capi-dispatcher] advisory unlock failed", unlockError);
-  }
-}
-
-async function dispatchBatch(
-  supabaseAdmin: any,
-  findDueStatusEvents: any,
-  deliverStatusEvent: any,
-) {
-  const due = await findDueStatusEvents(supabaseAdmin, 50);
+  const due = (claimed ?? []) as Array<{
+    id: string;
+    account_id: string;
+    lead_id: string;
+    status: string;
+    created_at: string;
+  }>;
 
   const results: Array<{
     id: string;
