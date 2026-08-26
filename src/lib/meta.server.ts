@@ -177,11 +177,16 @@ async function getRetryCount(admin: AdminClient, statusEventId: string) {
 
 /** Finds status_events rows with no capi_delivery_logs row yet. */
 export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 100) {
+  // Scan a wide window of recent events oldest-first, then keep only the ones
+  // with no successful delivery and fewer than 3 attempts. The 7-day floor
+  // stops permanently-failed old rows from clogging the scan window.
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: events, error } = await admin
     .from("status_events")
     .select("id, account_id, lead_id, status, created_at")
+    .gte("created_at", since)
     .order("created_at", { ascending: true })
-    .limit(limit);
+    .limit(Math.max(limit * 5, 500));
   if (error || !events?.length) return [];
   const ids = events.map((e) => e.id);
   const { data: logs } = await admin
@@ -196,10 +201,12 @@ export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 10
       attempts: Math.max(current.attempts, (log.retry_count ?? 0) + 1),
     });
   }
-  return events.filter((event) => {
-    const state = logState.get(event.id);
-    return !state?.delivered && (state?.attempts ?? 0) < 3;
-  });
+  return events
+    .filter((event) => {
+      const state = logState.get(event.id);
+      return !state?.delivered && (state?.attempts ?? 0) < 3;
+    })
+    .slice(0, limit);
 }
 
 /** Encrypts a token with pgcrypto for at-rest storage. Server-only; never call from the client. */

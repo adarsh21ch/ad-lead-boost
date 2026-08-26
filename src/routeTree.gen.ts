@@ -17,11 +17,12 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authenticated/deliveries'
-import { Route as AuthenticatedIntegrationRouteImport } from './routes/_authenticated/integration'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
+import { Route as AuthenticatedDashboardIntegrationRouteImport } from './routes/_authenticated/dashboard.integration'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
+import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test-event'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
 import { Route as ApiPublicWebhooksMetaLeadgenRouteImport } from './routes/api/public/webhooks/meta-leadgen'
 import { Route as ApiPublicWebhooksStatusRouteImport } from './routes/api/public/webhooks/status'
@@ -66,12 +67,6 @@ const AuthenticatedDeliveriesRoute = AuthenticatedDeliveriesRouteImport.update({
   path: '/deliveries',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedIntegrationRoute =
-  AuthenticatedIntegrationRouteImport.update({
-    id: '/integration',
-    path: '/integration',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
@@ -88,12 +83,23 @@ const AuthenticatedDashboardIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedDashboardIntegrationRoute =
+  AuthenticatedDashboardIntegrationRouteImport.update({
+    id: '/integration',
+    path: '/integration',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const AuthenticatedDashboardSelectAdAccountRoute =
   AuthenticatedDashboardSelectAdAccountRouteImport.update({
     id: '/select-ad-account',
     path: '/select-ad-account',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const ApiPublicTestEventRoute = ApiPublicTestEventRouteImport.update({
+  id: '/api/public/test-event',
+  path: '/api/public/test-event',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronCapiDispatcherRoute =
   ApiPublicCronCapiDispatcherRouteImport.update({
     id: '/api/public/cron/capi-dispatcher',
@@ -126,10 +132,11 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/deliveries': typeof AuthenticatedDeliveriesRoute
-  '/integration': typeof AuthenticatedIntegrationRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -143,10 +150,11 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/deliveries': typeof AuthenticatedDeliveriesRoute
-  '/integration': typeof AuthenticatedIntegrationRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -163,10 +171,11 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/deliveries': typeof AuthenticatedDeliveriesRoute
-  '/_authenticated/integration': typeof AuthenticatedIntegrationRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/_authenticated/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
@@ -183,10 +192,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/dashboard'
     | '/deliveries'
-    | '/integration'
     | '/leads'
     | '/auth/callback'
+    | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -200,10 +210,11 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/deliveries'
-    | '/integration'
     | '/leads'
     | '/auth/callback'
+    | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/dashboard'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -219,10 +230,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/dashboard'
     | '/_authenticated/deliveries'
-    | '/_authenticated/integration'
     | '/_authenticated/leads'
     | '/auth/callback'
+    | '/_authenticated/dashboard/integration'
     | '/_authenticated/dashboard/select-ad-account'
+    | '/api/public/test-event'
     | '/_authenticated/dashboard/'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/webhooks/meta-leadgen'
@@ -237,6 +249,7 @@ export interface RootRouteChildren {
   DataDeletionRoute: typeof DataDeletionRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiPublicTestEventRoute: typeof ApiPublicTestEventRoute
   ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
   ApiPublicWebhooksMetaLeadgenRoute: typeof ApiPublicWebhooksMetaLeadgenRoute
   ApiPublicWebhooksStatusRoute: typeof ApiPublicWebhooksStatusRoute
@@ -301,13 +314,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeliveriesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/integration': {
-      id: '/_authenticated/integration'
-      path: '/integration'
-      fullPath: '/integration'
-      preLoaderRoute: typeof AuthenticatedIntegrationRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/leads': {
       id: '/_authenticated/leads'
       path: '/leads'
@@ -329,12 +335,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/dashboard/integration': {
+      id: '/_authenticated/dashboard/integration'
+      path: '/integration'
+      fullPath: '/dashboard/integration'
+      preLoaderRoute: typeof AuthenticatedDashboardIntegrationRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/_authenticated/dashboard/select-ad-account': {
       id: '/_authenticated/dashboard/select-ad-account'
       path: '/select-ad-account'
       fullPath: '/dashboard/select-ad-account'
       preLoaderRoute: typeof AuthenticatedDashboardSelectAdAccountRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/api/public/test-event': {
+      id: '/api/public/test-event'
+      path: '/api/public/test-event'
+      fullPath: '/api/public/test-event'
+      preLoaderRoute: typeof ApiPublicTestEventRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/capi-dispatcher': {
       id: '/api/public/cron/capi-dispatcher'
@@ -368,12 +388,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardIntegrationRoute: typeof AuthenticatedDashboardIntegrationRoute
   AuthenticatedDashboardSelectAdAccountRoute: typeof AuthenticatedDashboardSelectAdAccountRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
 }
 
 const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
+    AuthenticatedDashboardIntegrationRoute:
+      AuthenticatedDashboardIntegrationRoute,
     AuthenticatedDashboardSelectAdAccountRoute:
       AuthenticatedDashboardSelectAdAccountRoute,
     AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
@@ -387,14 +410,12 @@ const AuthenticatedDashboardRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
   AuthenticatedDeliveriesRoute: typeof AuthenticatedDeliveriesRoute
-  AuthenticatedIntegrationRoute: typeof AuthenticatedIntegrationRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
   AuthenticatedDeliveriesRoute: AuthenticatedDeliveriesRoute,
-  AuthenticatedIntegrationRoute: AuthenticatedIntegrationRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
 }
 
@@ -418,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataDeletionRoute: DataDeletionRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiPublicTestEventRoute: ApiPublicTestEventRoute,
   ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
   ApiPublicWebhooksMetaLeadgenRoute: ApiPublicWebhooksMetaLeadgenRoute,
   ApiPublicWebhooksStatusRoute: ApiPublicWebhooksStatusRoute,
