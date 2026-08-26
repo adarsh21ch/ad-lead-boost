@@ -13,6 +13,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/select-ad-account")({
+  head: () => ({
+    meta: [
+      { title: "Select Meta Account — AdsPro" },
+      { name: "description", content: "Choose the Meta ad account and dataset AdsPro will sync outcomes to." },
+      { property: "og:title", content: "Select Meta Account — AdsPro" },
+      { property: "og:description", content: "Choose the Meta ad account and dataset AdsPro will sync outcomes to." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: SelectAdAccountPage,
 });
 
@@ -35,7 +45,10 @@ function SelectAdAccountPage() {
 
   const pixelsQuery = useQuery({
     queryKey: ["meta-pixels", accountId, adAccountId],
-    queryFn: () => listMetaPixelsFn({ data: { accountId, adAccountId: adAccountId! } }),
+    queryFn: () => {
+      if (!adAccountId) throw new Error("Select an ad account first");
+      return listMetaPixelsFn({ data: { accountId, adAccountId } });
+    },
     enabled: !!accountId && !!adAccountId,
   });
 

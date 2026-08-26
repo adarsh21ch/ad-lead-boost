@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { registerWithEmail } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,12 +25,50 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const registerWithEmailFn = useServerFn(registerWithEmail);
   const [mode, setMode] = useState<"sign_in" | "sign_up">("sign_in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [callbackMessage, setCallbackMessage] = useState("Completing sign in…");
 
-  const submit = async (e: React.FormEvent) => {
+  const isCallback = location.pathname === "/auth/callback";
+
+  useEffect(() => {
+    if (!isCallback) return;
+    let cancelled = false;
+
+    async function completeAuth() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          if (!cancelled) setCallbackMessage("This sign-in link is invalid or expired.");
+          window.setTimeout(() => navigate({ to: "/auth", replace: true }), 1200);
+          return;
+        }
+      }
+
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        navigate({ to: "/dashboard", replace: true });
+        return;
+      }
+
+      if (!cancelled) setCallbackMessage("Please sign in to continue.");
+      window.setTimeout(() => navigate({ to: "/auth", replace: true }), 800);
+    }
+
+    void completeAuth();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCallback, navigate]);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -37,10 +77,11 @@ function AuthPage() {
         if (error) throw error;
         navigate({ to: "/dashboard" });
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        await registerWithEmailFn({ data: { email, password } });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast.success("Account created. Check your email to confirm, then sign in.");
-        setMode("sign_in");
+        toast.success("Account created. You're signed in.");
+        navigate({ to: "/dashboard" });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
@@ -48,6 +89,24 @@ function AuthPage() {
       setLoading(false);
     }
   };
+
+  if (isCallback) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>AdsPro</CardTitle>
+            <CardDescription>{callbackMessage}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -87,13 +146,14 @@ function AuthPage() {
               {loading ? "Please wait…" : mode === "sign_in" ? "Sign in" : "Sign up"}
             </Button>
           </form>
-          <button
+          <Button
             type="button"
-            className="mt-4 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            variant="ghost"
+            className="mt-4 w-full text-muted-foreground"
             onClick={() => setMode(mode === "sign_in" ? "sign_up" : "sign_in")}
           >
             {mode === "sign_in" ? "Need an account? Sign up" : "Already have an account? Sign in"}
-          </button>
+          </Button>
         </CardContent>
       </Card>
     </div>

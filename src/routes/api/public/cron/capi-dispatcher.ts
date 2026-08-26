@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { deliverStatusEvent, findUndeliveredStatusEvents } from "@/lib/meta.server";
 
 // Scheduled dispatcher — call every 1-2 minutes (Supabase Cron / external
 // scheduler). Delivers queued status_events to Meta's Conversions API.
@@ -22,6 +21,7 @@ async function runDispatcher(request: Request) {
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { deliverStatusEvent, findUndeliveredStatusEvents } = await import("@/lib/meta.server");
   const pending = await findUndeliveredStatusEvents(supabaseAdmin, 100);
 
   const results: Array<{ id: string; ok: boolean; httpStatus: number | null }> = [];

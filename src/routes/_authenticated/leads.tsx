@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listLeads, setLeadStatus } from "@/lib/adspro.functions";
+import { LEAD_STATUSES } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import {
   Table,
@@ -22,10 +23,18 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/leads")({
+  head: () => ({
+    meta: [
+      { title: "Leads — AdsPro" },
+      { name: "description", content: "Review Meta Lead Ads leads and assign conversion outcomes in AdsPro." },
+      { property: "og:title", content: "Leads — AdsPro" },
+      { property: "og:description", content: "Review Meta Lead Ads leads and assign conversion outcomes in AdsPro." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: LeadsPage,
 });
-
-const STATUSES = ["contacted", "qualified", "not_qualified", "booked", "no_show", "purchased"];
 
 function LeadsPage() {
   const queryClient = useQueryClient();
@@ -100,7 +109,7 @@ function LeadsPage() {
                           <SelectValue placeholder="Choose…" />
                         </SelectTrigger>
                         <SelectContent>
-                          {STATUSES.map((s) => (
+                          {LEAD_STATUSES.map((s) => (
                             <SelectItem key={s} value={s}>
                               {s.replace("_", " ")}
                             </SelectItem>

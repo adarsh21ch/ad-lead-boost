@@ -9,6 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/integration")({
+  head: () => ({
+    meta: [
+      { title: "Integration — AdsPro" },
+      { name: "description", content: "Copy AdsPro webhook credentials and test the Meta Conversions API pipeline." },
+      { property: "og:title", content: "Integration — AdsPro" },
+      { property: "og:description", content: "Copy AdsPro webhook credentials and test the Meta Conversions API pipeline." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: IntegrationPage,
 });
 

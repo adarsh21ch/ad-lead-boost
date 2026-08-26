@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { graphUrl, deliverStatusEvent, assertLeadStatus, getOwnedAccountToken } from "./meta.server";
+import { isLeadStatus } from "./adspro.constants";
 
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -37,13 +37,15 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
     return data;
   })
   .handler(async ({ data }) => {
+    const { getMetaRedirectUri, makeMetaOAuthState } = await import("./meta.server");
     const appId = process.env["META_APP_ID"];
-    const redirectUri = process.env["META_OAUTH_REDIRECT_URI"];
-    if (!appId || !redirectUri) throw new Error("Meta OAuth is not configured");
+    if (!appId) throw new Error("Meta OAuth is not configured");
+    const redirectUri = getMetaRedirectUri();
+    const state = makeMetaOAuthState(data.accountId);
     return (
       `https://www.facebook.com/v21.0/dialog/oauth?client_id=${encodeURIComponent(appId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&state=${encodeURIComponent(data.accountId)}` +
+      `&state=${encodeURIComponent(state)}` +
       `&scope=ads_management,leads_retrieval`
     );
   });
@@ -53,6 +55,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string }) => data)
   .handler(async ({ data, context }) => {
+    const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
     const token = await getOwnedAccountToken(context.supabase, data.accountId);
     const res = await fetch(
       `${graphUrl("me/adaccounts")}?fields=id,name,account_id&limit=100&access_token=${encodeURIComponent(token)}`,
@@ -66,6 +69,7 @@ export const listMetaPixels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string; adAccountId: string }) => data)
   .handler(async ({ data, context }) => {
+    const { graphUrl, getOwnedAccountToken } = await import("./meta.server");
     const token = await getOwnedAccountToken(context.supabase, data.accountId);
     const res = await fetch(
       `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100&access_token=${encodeURIComponent(token)}`,
@@ -124,7 +128,7 @@ export const setLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string; status: string }) => {
     if (!data?.leadId) throw new Error("leadId is required");
-    assertLeadStatus(data.status);
+    if (!isLeadStatus(data.status)) throw new Error(`Invalid status: ${data.status}`);
     return data;
   })
   .handler(async ({ data, context }) => {
@@ -191,6 +195,7 @@ export const sendTestEvent = createServerFn({ method: "POST" })
     if (evErr) throw evErr;
 
     // Dispatch immediately so the user can confirm it reaches Meta.
+    const { deliverStatusEvent } = await import("./meta.server");
     const result = await deliverStatusEvent(supabaseAdmin, event);
     return { eventId: event.id, ...result };
   });

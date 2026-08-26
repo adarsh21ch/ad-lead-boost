@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createAccount, getMetaConnectUrl, getMyAccount } from "@/lib/adspro.functions";
@@ -11,10 +11,21 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — AdsPro" },
+      { name: "description", content: "Monitor Meta Lead Ads account setup and lead-outcome sync status in AdsPro." },
+      { property: "og:title", content: "Dashboard — AdsPro" },
+      { property: "og:description", content: "Monitor Meta Lead Ads account setup and lead-outcome sync status in AdsPro." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DashboardPage,
 });
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { meta_connect?: string };
   const [name, setName] = useState("");
@@ -113,7 +124,7 @@ function DashboardPage() {
                   variant="outline"
                   className="mt-2"
                   onClick={() => {
-                    window.location.href = `/dashboard/select-ad-account?account=${account.id}`;
+                    navigate({ to: "/dashboard/select-ad-account", search: { account: account.id } });
                   }}
                 >
                   Choose ad account & dataset
