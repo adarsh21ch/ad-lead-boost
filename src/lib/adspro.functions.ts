@@ -124,8 +124,8 @@ export const setLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string; status: string }) => {
     if (!data?.leadId) throw new Error("leadId is required");
-    assertStatus(data.status);
-    return data as { leadId: string; status: LeadStatus };
+    assertLeadStatus(data.status);
+    return data;
   })
   .handler(async ({ data, context }) => {
     // RLS lets the owner read their own leads — this doubles as the ownership check.
