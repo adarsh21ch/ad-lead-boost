@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createAccount, getMetaConnectUrl, getMyAccount } from "@/lib/adspro.functions";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { getTokenHealth } from "@/lib/token-health";
 
 export const Route = createFileRoute("/_authenticated/dashboard/")({
   head: () => ({
@@ -66,6 +67,8 @@ function DashboardPage() {
     queryKey: ["my-account"],
     queryFn: () => getMyAccountFn(),
   });
+
+  const tokenHealth = getTokenHealth(account ?? {});
 
   const connectMeta = async () => {
     setBusy(true);
@@ -127,6 +130,45 @@ function DashboardPage() {
               <CardDescription>Your connected Meta workspace</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              {tokenHealth.state === "expired" ? (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                  <p className="font-medium text-destructive">
+                    Your Meta connection has expired — lead-sync is stopped.
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    Reconnect Meta to resume sending lead outcomes to your dataset.
+                  </p>
+                  <Button onClick={connectMeta} disabled={busy} size="sm" className="mt-2">
+                    {busy ? "Redirecting…" : "Reconnect Meta"}
+                  </Button>
+                </div>
+              ) : tokenHealth.state === "expiring" ? (
+                <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
+                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                    Your Meta connection expires in {tokenHealth.daysRemaining} day
+                    {tokenHealth.daysRemaining === 1 ? "" : "s"}. Reconnect now to avoid losing
+                    lead-sync.
+                  </p>
+                  <Button
+                    onClick={connectMeta}
+                    disabled={busy}
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                  >
+                    {busy ? "Redirecting…" : "Reconnect Meta"}
+                  </Button>
+                </div>
+              ) : tokenHealth.state === "healthy" ? (
+                <p className="text-xs text-muted-foreground">
+                  Token valid until {tokenHealth.expiresAt?.toLocaleDateString()} (
+                  {tokenHealth.daysRemaining} days)
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Token expiry unknown — reconnect Meta if lead-sync stops.
+                </p>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ad account</span>
                 <span className="font-mono">{account.meta_ad_account_id ?? "—"}</span>
@@ -151,14 +193,18 @@ function DashboardPage() {
                   Choose ad account & dataset
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["my-account"] })}
-              >
-                Refresh
-              </Button>
+              <div className="mt-3 flex items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/dashboard/integration">Manage integration</Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["my-account"] })}
+                >
+                  Refresh
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

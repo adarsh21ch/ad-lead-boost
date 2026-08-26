@@ -21,17 +21,33 @@ async function runDispatcher(request: Request) {
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { deliverStatusEvent, findUndeliveredStatusEvents } = await import("@/lib/meta.server");
-  const pending = await findUndeliveredStatusEvents(supabaseAdmin, 100);
+  const { deliverStatusEvent, findDueStatusEvents } = await import("@/lib/meta.server");
+  const due = await findDueStatusEvents(supabaseAdmin, 50);
 
-  const results: Array<{ id: string; ok: boolean; httpStatus: number | null }> = [];
-  for (const event of pending) {
+  const results: Array<{
+    id: string;
+    ok: boolean;
+    httpStatus: number | null;
+    attempt: number;
+    dispatchStatus: string;
+  }> = [];
+  for (const event of due) {
     const result = await deliverStatusEvent(supabaseAdmin, event);
-    results.push({ id: event.id, ok: result.ok, httpStatus: result.httpStatus });
+    results.push({
+      id: event.id,
+      ok: result.ok,
+      httpStatus: result.httpStatus,
+      attempt: result.attempt,
+      dispatchStatus: result.dispatchStatus,
+    });
   }
 
-  return new Response(JSON.stringify({ processed: results.length, results }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      processed: results.length,
+      abandoned: results.filter((r) => r.dispatchStatus === "abandoned").length,
+      results,
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
 }

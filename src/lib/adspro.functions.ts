@@ -341,14 +341,17 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("capi_delivery_logs")
       .select(
-        "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status)",
+        "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status, dispatch_status)",
       )
       .order("created_at", { ascending: false, referencedTable: "status_events" })
       .limit(20);
     if (error) throw error;
     return (data ?? []).map((row) => {
-      const ev = (row as unknown as { status_events?: { created_at?: string; status?: string } })
-        .status_events;
+      const ev = (
+        row as unknown as {
+          status_events?: { created_at?: string; status?: string; dispatch_status?: string };
+        }
+      ).status_events;
       return {
         id: row.id,
         meta_event_name: row.meta_event_name,
@@ -358,6 +361,8 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
         is_test: (row as unknown as { is_test?: boolean }).is_test ?? false,
         created_at: ev?.created_at ?? null,
         status: ev?.status ?? null,
+        dispatch_status: ev?.dispatch_status ?? "pending",
+        attempt: (row.retry_count ?? 0) + 1,
       };
     });
   });
