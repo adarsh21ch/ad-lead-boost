@@ -44,12 +44,29 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// A cached SSR document keeps pointing at asset hashes from the deploy that
+// produced it; after a redeploy those files are gone and the inline $_TSR
+// bootstrap no longer matches the loaded bundle, which fails hydration with
+// "Expected to find bootstrap data on window.$_TSR" and a blank screen.
+function withNoStoreHtml(response: Response): Response {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html")) return response;
+  if (response.headers.has("cache-control")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, must-revalidate");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withNoStoreHtml(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
