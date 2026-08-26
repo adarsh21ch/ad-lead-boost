@@ -113,8 +113,9 @@ function SelectAdAccountPage() {
     queryKey: ["meta-pixels", accountId, adAccountId, selectedAdAccount?.business?.id],
     queryFn: () => {
       if (!adAccountId) throw new Error("Select an ad account first");
+      const businessId = selectedAdAccount?.business?.id;
       return listPixels({
-        data: { accountId, adAccountId, businessId: selectedAdAccount?.business?.id },
+        data: businessId ? { accountId, adAccountId, businessId } : { accountId, adAccountId },
       });
     },
     enabled: Boolean(accountId && adAccountId),
@@ -227,7 +228,7 @@ function SelectAdAccountPage() {
                       <p className="text-sm text-muted-foreground">No datasets or pixels were found for this ad account or its Business portfolio.</p>
                     ) : (
                       <div className="space-y-2">
-                        {pixelsQuery.data?.ok && pixelsQuery.data.warnings.length > 0 && !dismissedPixelError ? (
+                        {pixelsQuery.data?.ok && pixelsQuery.data.warnings.length > 0 && !dismissedPixelError && pixelsQuery.data.warnings[0] ? (
                           <ErrorPanel title="Some Business dataset sources could not be read" error={pixelsQuery.data.warnings[0]} onDismiss={() => setDismissedPixelError(true)} />
                         ) : null}
                         {saveError ? <ErrorPanel title="Could not save this selection" error={plainError(saveError)} onDismiss={() => setSaveError(null)} /> : null}

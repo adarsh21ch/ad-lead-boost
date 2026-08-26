@@ -132,7 +132,19 @@ export const listMetaPixels = createServerFn({ method: "GET" })
         if (statusError) console.error("[select-ad-account] failed to mark token expired", statusError);
         return { ok: false as const, error: tokenError };
       }
-      if (pixels.size === 0 && errors.length > 0) return { ok: false as const, error: errors[0] };
+      if (pixels.size === 0 && errors.length > 0) {
+        return {
+          ok: false as const,
+          error: errors[0] ?? {
+            message: "Meta dataset discovery failed.",
+            code: null,
+            errorSubcode: null,
+            fbtraceId: null,
+            httpStatus: null,
+            rawResponse: null,
+          },
+        };
+      }
       return { ok: true as const, data: [...pixels.values()], warnings: errors };
     } catch (error) {
       return { ok: false as const, error: getMetaGraphErrorDetails(error) };
