@@ -215,6 +215,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_due_status_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          account_id: string
+          created_at: string
+          id: string
+          lead_id: string
+          status: string
+        }[]
+      }
       decrypt_token: {
         Args: { p_encrypted: string; p_key: string }
         Returns: string
@@ -223,6 +233,7 @@ export type Database = {
         Args: { p_key: string; p_token: string }
         Returns: string
       }
+      run_capi_dispatcher: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
