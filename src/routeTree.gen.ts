@@ -10,33 +10,92 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
+import { Route as ApiPublicWebhooksMetaLeadgenRouteImport } from './routes/api/public/webhooks/meta-leadgen'
+import { Route as ApiPublicWebhooksStatusRouteImport } from './routes/api/public/webhooks/status'
+import { Route as ApiPublicAuthMetaCallbackRouteImport } from './routes/api/public/auth/meta/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronCapiDispatcherRoute =
+  ApiPublicCronCapiDispatcherRouteImport.update({
+    id: '/api/public/cron/capi-dispatcher',
+    path: '/api/public/cron/capi-dispatcher',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksMetaLeadgenRoute =
+  ApiPublicWebhooksMetaLeadgenRouteImport.update({
+    id: '/api/public/webhooks/meta-leadgen',
+    path: '/api/public/webhooks/meta-leadgen',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksStatusRoute = ApiPublicWebhooksStatusRouteImport.update({
+  id: '/api/public/webhooks/status',
+  path: '/api/public/webhooks/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAuthMetaCallbackRoute =
+  ApiPublicAuthMetaCallbackRouteImport.update({
+    id: '/api/public/auth/meta/callback',
+    path: '/api/public/auth/meta/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/webhooks/meta-leadgen': typeof ApiPublicWebhooksMetaLeadgenRoute
+  '/api/public/webhooks/status': typeof ApiPublicWebhooksStatusRoute
+  '/api/public/auth/meta/callback': typeof ApiPublicAuthMetaCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/public/cron/capi-dispatcher'
+    | '/api/public/webhooks/meta-leadgen'
+    | '/api/public/webhooks/status'
+    | '/api/public/auth/meta/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
+  ApiPublicWebhooksMetaLeadgenRoute: typeof ApiPublicWebhooksMetaLeadgenRoute
+  ApiPublicWebhooksStatusRoute: typeof ApiPublicWebhooksStatusRoute
+  ApiPublicAuthMetaCallbackRoute: typeof ApiPublicAuthMetaCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +107,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/capi-dispatcher': {
+      id: '/api/public/cron/capi-dispatcher'
+      path: '/api/public/cron/capi-dispatcher'
+      fullPath: '/api/public/cron/capi-dispatcher'
+      preLoaderRoute: typeof ApiPublicCronCapiDispatcherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/meta-leadgen': {
+      id: '/api/public/webhooks/meta-leadgen'
+      path: '/api/public/webhooks/meta-leadgen'
+      fullPath: '/api/public/webhooks/meta-leadgen'
+      preLoaderRoute: typeof ApiPublicWebhooksMetaLeadgenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/status': {
+      id: '/api/public/webhooks/status'
+      path: '/api/public/webhooks/status'
+      fullPath: '/api/public/webhooks/status'
+      preLoaderRoute: typeof ApiPublicWebhooksStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/auth/meta/callback': {
+      id: '/api/public/auth/meta/callback'
+      path: '/api/public/auth/meta/callback'
+      fullPath: '/api/public/auth/meta/callback'
+      preLoaderRoute: typeof ApiPublicAuthMetaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
+  ApiPublicWebhooksMetaLeadgenRoute: ApiPublicWebhooksMetaLeadgenRoute,
+  ApiPublicWebhooksStatusRoute: ApiPublicWebhooksStatusRoute,
+  ApiPublicAuthMetaCallbackRoute: ApiPublicAuthMetaCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
