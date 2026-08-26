@@ -100,24 +100,26 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "sign_in") {
-        const { error } = await withAuthTimeout(
+        const { data, error } = await withAuthTimeout(
           supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
           "Sign in",
         );
         if (error) throw error;
-        await navigate({ to: "/dashboard", replace: true });
+        if (!data.session) throw new Error("Sign in did not return a session. Please try again.");
+        void navigate({ to: "/dashboard", replace: true });
       } else {
         await withAuthTimeout(
           registerWithEmailFn({ data: { email: normalizedEmail, password } }),
           "Sign up",
         );
-        const { error } = await withAuthTimeout(
+        const { data, error } = await withAuthTimeout(
           supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
           "Sign in",
         );
         if (error) throw error;
+        if (!data.session) throw new Error("Account created, but sign in did not return a session.");
         toast.success("Account created. You're signed in.");
-        await navigate({ to: "/dashboard", replace: true });
+        void navigate({ to: "/dashboard", replace: true });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Authentication failed";
