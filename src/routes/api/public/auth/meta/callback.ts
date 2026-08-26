@@ -42,10 +42,10 @@ function metaErrorDetail(status: number, body: unknown, redirectUri?: string) {
   return {
     status,
     redirectUri,
-    message: metaError?.message,
-    code: metaError?.code,
-    error_subcode: metaError?.error_subcode,
-    fbtrace_id: metaError?.fbtrace_id,
+    message: metaError?.["message"],
+    code: metaError?.["code"],
+    error_subcode: metaError?.["error_subcode"],
+    fbtrace_id: metaError?.["fbtrace_id"],
     meta: body,
   };
 }
