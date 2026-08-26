@@ -1,33 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Error codes surfaced as /dashboard?meta_connect=error&code=<code>:
-// - missing_config:    META_APP_ID / META_APP_SECRET not set
-// - bad_state:         OAuth state param missing or failed signature check (possible CSRF)
-// - token_exchange:    code -> short-lived token failed (usually redirect_uri mismatch
-//                      or wrong app secret — full Meta error is logged server-side)
-// - token_upgrade:     short-lived -> long-lived token exchange failed
-// - encryption_config: TOKEN_ENCRYPTION_KEY not set
-// - db_write:          storing the token on the account row failed
+// Error reasons surfaced as /dashboard?meta_connect=error&reason=<reason>.
+// Full provider/database details stay server-side in console.error logs.
 
-type ConnectErrorCode =
-  | "missing_config"
-  | "bad_state"
-  | "token_exchange"
-  | "token_upgrade"
-  | "encryption_config"
-  | "db_write";
+type ConnectErrorReason =
+  | "meta_denied"
+  | "no_code"
+  | "state_missing"
+  | "state_mismatch"
+  | "not_authenticated"
+  | "missing_app_config"
+  | "token_exchange_failed"
+  | "token_extend_failed"
+  | "db_write_failed"
+  | "unknown";
 
-function fail(code: ConnectErrorCode, detail?: unknown) {
-  if (detail !== undefined) {
-    // Full provider error stays server-side; only the short code reaches the browser.
-    console.error(`[meta-oauth] ${code}:`, JSON.stringify(detail));
-  } else {
-    console.error(`[meta-oauth] ${code}`);
-  }
+function fail(reason: ConnectErrorReason, detail?: unknown) {
+  console.error(
+    `[meta-oauth] ${reason}`,
+    detail === undefined ? "" : safeStringify(detail),
+  );
   return new Response(null, {
     status: 302,
-    headers: { Location: `/dashboard?meta_connect=error&code=${code}` },
+    headers: { Location: `/dashboard?meta_connect=error&reason=${reason}` },
   });
+}
+
+function safeStringify(detail: unknown) {
+  try {
+    return JSON.stringify(detail);
+  } catch {
+    return String(detail);
+  }
+}
+
+function metaErrorDetail(status: number, body: unknown, redirectUri?: string) {
+  const metaError =
+    body && typeof body === "object" && "error" in body
+      ? (body as { error?: Record<string, unknown> }).error
+      : undefined;
+  return {
+    status,
+    redirectUri,
+    message: metaError?.["message"],
+    code: metaError?.["code"],
+    error_subcode: metaError?.["error_subcode"],
+    fbtrace_id: metaError?.["fbtrace_id"],
+    meta: body,
+  };
 }
 
 // Completes the "Connect Meta" OAuth flow: exchanges the code for a
@@ -37,23 +57,51 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
-        if (!code || !state) return fail("bad_state", { reason: "missing code or state param" });
-
-        const appId = process.env["META_APP_ID"];
-        const appSecret = process.env["META_APP_SECRET"];
-        if (!appId || !appSecret) return fail("missing_config");
-
-        const { getMetaRedirectUri, parseMetaOAuthState, encryptToken } = await import(
-          "@/lib/meta.server"
-        );
-        const accountId = parseMetaOAuthState(state);
-        if (!accountId) return fail("bad_state", { reason: "state signature mismatch" });
-        const redirectUri = getMetaRedirectUri(request.url);
-
         try {
+          const url = new URL(request.url);
+          const providerError = url.searchParams.get("error");
+          const code = url.searchParams.get("code");
+          const state = url.searchParams.get("state");
+
+          if (providerError) {
+            return fail("meta_denied", {
+              error: providerError,
+              error_reason: url.searchParams.get("error_reason"),
+              error_description: url.searchParams.get("error_description"),
+            });
+          }
+          if (!code) return fail("no_code", { reason: "missing code param" });
+          if (!state) return fail("state_missing", { reason: "missing state param" });
+
+          const appId = process.env["META_APP_ID"];
+          const appSecret = process.env["META_APP_SECRET"];
+          if (!appId || !appSecret) {
+            return fail("missing_app_config", {
+              missing: [
+                ...(!appId ? ["META_APP_ID"] : []),
+                ...(!appSecret ? ["META_APP_SECRET"] : []),
+              ],
+            });
+          }
+
+          const { getMetaRedirectUri, parseMetaOAuthState, encryptToken } = await import(
+            "@/lib/meta.server"
+          );
+          const accountId = parseMetaOAuthState(state);
+          if (!accountId) return fail("state_mismatch", { reason: "state signature mismatch" });
+          const redirectUri = getMetaRedirectUri(request.url);
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+          const { data: account, error: accountError } = await supabaseAdmin
+            .from("accounts")
+            .select("id, owner_user_id")
+            .eq("id", accountId)
+            .maybeSingle();
+          if (accountError) return fail("db_write_failed", accountError);
+          if (!account?.owner_user_id) {
+            return fail("not_authenticated", { reason: "account owner not found", accountId });
+          }
+
           // 1. code -> short-lived token
           const shortRes = await fetch(
             `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${encodeURIComponent(appId)}` +
@@ -64,7 +112,10 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
           const shortJson = await shortRes.json();
           if (!shortRes.ok || !shortJson.access_token) {
             // redirect_uri mismatch and bad app secret both surface here.
-            return fail("token_exchange", { status: shortRes.status, meta: shortJson, redirectUri });
+            return fail(
+              "token_exchange_failed",
+              metaErrorDetail(shortRes.status, shortJson, redirectUri),
+            );
           }
 
           // 2. short-lived -> long-lived token (~60 days)
@@ -76,35 +127,37 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
           );
           const longJson = await longRes.json();
           if (!longRes.ok || !longJson.access_token) {
-            return fail("token_upgrade", { status: longRes.status, meta: longJson });
+            return fail("token_extend_failed", metaErrorDetail(longRes.status, longJson));
           }
 
           const expiresAt = longJson.expires_in
             ? new Date(Date.now() + Number(longJson.expires_in) * 1000).toISOString()
             : null;
 
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
           let encrypted: string;
           try {
             encrypted = await encryptToken(supabaseAdmin, longJson.access_token);
           } catch (err) {
-            return fail("encryption_config", err instanceof Error ? err.message : err);
+            return fail("unknown", err instanceof Error ? err.message : err);
           }
 
-          const { error } = await supabaseAdmin
+          const { data: savedAccount, error } = await supabaseAdmin
             .from("accounts")
             .update({
               meta_access_token_encrypted: encrypted,
               meta_token_expires_at: expiresAt,
               status: "active",
             })
-            .eq("id", accountId);
-          if (error) return fail("db_write", error);
+            .eq("id", accountId)
+            .select("id")
+            .maybeSingle();
+          if (error || !savedAccount) {
+            return fail("db_write_failed", error ?? { reason: "account update returned no row", accountId });
+          }
 
           return redirect(`/dashboard/select-ad-account?account=${encodeURIComponent(accountId)}`);
         } catch (err) {
-          return fail("token_exchange", err instanceof Error ? err.message : err);
+          return fail("unknown", err instanceof Error ? err.message : err);
         }
       },
     },

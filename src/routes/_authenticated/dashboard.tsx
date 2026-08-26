@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,27 +24,43 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
 
-const META_CONNECT_ERRORS: Record<string, string> = {
-  missing_config:
-    "Meta app credentials are not configured on the server (META_APP_ID / META_APP_SECRET).",
-  bad_state: "The OAuth state check failed. Please start the connection again.",
-  token_exchange:
-    "Meta rejected the authorization code exchange. This is usually a redirect_uri mismatch — check that the redirect URI in your Meta app settings exactly matches the server's META_OAUTH_REDIRECT_URI. Details are in the server logs.",
-  token_upgrade: "Meta accepted the code but the long-lived token exchange failed. Details are in the server logs.",
-  encryption_config: "The server TOKEN_ENCRYPTION_KEY is not configured, so the token could not be stored.",
-  db_write: "The token was retrieved but saving it to your account failed. Details are in the server logs.",
-};
+function getMetaConnectErrorMessage(reason: string) {
+  if (reason === "meta_denied") {
+    return "You cancelled the Meta connection. Try again and press Continue.";
+  }
+  if (reason === "no_code" || reason === "state_missing" || reason === "state_mismatch") {
+    return "The connection link expired or was tampered with. Please start Connect Meta again.";
+  }
+  if (reason === "not_authenticated") return "Your session expired. Log in and try again.";
+  if (reason === "missing_app_config") {
+    return "Server configuration problem — Meta app credentials missing.";
+  }
+  if (reason === "token_exchange_failed" || reason === "token_extend_failed") {
+    return "Meta rejected the connection. This is usually a Redirect URI mismatch in the Meta app settings.";
+  }
+  if (reason === "db_write_failed") {
+    return "Connected to Meta but could not save the account. Please retry.";
+  }
+  return `Connection failed (code: ${reason}).`;
+}
 
 function DashboardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search = useSearch({ strict: false }) as { meta_connect?: string; code?: string };
+  const search = useSearch({ strict: false }) as { meta_connect?: string; reason?: string };
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const getMyAccountFn = useServerFn(getMyAccount);
   const createAccountFn = useServerFn(createAccount);
   const getMetaConnectUrlFn = useServerFn(getMetaConnectUrl);
+
+  useEffect(() => {
+    if (search.meta_connect !== "error") return;
+    const reason = search.reason ?? "unknown";
+    toast.error(getMetaConnectErrorMessage(reason));
+    navigate({ to: "/dashboard", replace: true });
+  }, [navigate, search.meta_connect, search.reason]);
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["my-account"],
@@ -76,15 +92,6 @@ function DashboardPage() {
             Connect Meta and monitor your lead-outcome sync.
           </p>
         </div>
-
-        {search.meta_connect === "error" && (
-          <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <span className="font-medium">Meta connection failed.</span>{" "}
-            {META_CONNECT_ERRORS[search.code ?? ""] ??
-              "An unexpected error occurred. Please try again."}
-            {search.code && <span className="ml-1 font-mono text-xs">({search.code})</span>}
-          </div>
-        )}
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>

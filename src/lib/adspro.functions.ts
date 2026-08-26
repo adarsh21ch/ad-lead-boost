@@ -59,11 +59,16 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
     const res = await fetch(
-      `${graphUrl("me/adaccounts")}?fields=id,name,account_id&limit=100&access_token=${encodeURIComponent(token)}`,
+      `${graphUrl("me/adaccounts")}?fields=id,name,account_id,account_status&limit=100&access_token=${encodeURIComponent(token)}`,
     );
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error?.message ?? "Failed to list ad accounts");
-    return (json.data ?? []) as Array<{ id: string; name: string; account_id: string }>;
+    return (json.data ?? []) as Array<{
+      id: string;
+      name: string;
+      account_id: string;
+      account_status?: number;
+    }>;
   });
 
 export const listMetaPixels = createServerFn({ method: "GET" })
