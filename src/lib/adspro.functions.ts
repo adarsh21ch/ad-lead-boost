@@ -206,3 +206,72 @@ export const sendTestEvent = createServerFn({ method: "POST" })
     const result = await deliverStatusEvent(supabaseAdmin, event);
     return { eventId: event.id, ...result };
   });
+
+export const getIntegrationAccount = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("accounts")
+      .select("id, status, meta_ad_account_id, meta_dataset_id, meta_token_expires_at, webhook_api_key")
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const account = data?.[0] ?? null;
+    if (!account) return null;
+    const ready = account.status === "active" && Boolean(account.meta_dataset_id);
+    // Never expose the API key until the account is fully connected.
+    return ready ? account : { ...account, webhook_api_key: "", ready: false };
+  });
+
+export const regenerateWebhookKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { accountId: string }) => {
+    if (!data?.accountId) throw new Error("accountId is required");
+    return data;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: owned, error: ownErr } = await supabaseAdmin
+      .from("accounts")
+      .select("id, owner_user_id")
+      .eq("id", data.accountId)
+      .maybeSingle();
+    if (ownErr) throw ownErr;
+    if (!owned || owned.owner_user_id !== context.userId) throw new Error("Account not found");
+
+    const { randomBytes } = await import("crypto");
+    const newKey = randomBytes(24).toString("hex");
+    const { error } = await supabaseAdmin
+      .from("accounts")
+      .update({ webhook_api_key: newKey })
+      .eq("id", owned.id);
+    if (error) throw error;
+    return { webhook_api_key: newKey };
+  });
+
+export const listAccountDeliveries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("capi_delivery_logs")
+      .select(
+        "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status)",
+      )
+      .order("id", { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return (data ?? []).map((row) => {
+      const ev = (row as unknown as { status_events?: { created_at?: string; status?: string } })
+        .status_events;
+      return {
+        id: row.id,
+        meta_event_name: row.meta_event_name,
+        http_status: row.http_status,
+        meta_response: row.meta_response,
+        delivered_at: row.delivered_at,
+        is_test: (row as unknown as { is_test?: boolean }).is_test ?? false,
+        created_at: ev?.created_at ?? null,
+        status: ev?.status ?? null,
+      };
+    });
+  });
