@@ -58,6 +58,7 @@ export type Database = {
           delivered_at: string | null
           http_status: number | null
           id: string
+          is_test: boolean
           meta_event_name: string
           meta_response: Json | null
           retry_count: number
@@ -67,6 +68,7 @@ export type Database = {
           delivered_at?: string | null
           http_status?: number | null
           id?: string
+          is_test?: boolean
           meta_event_name: string
           meta_response?: Json | null
           retry_count?: number
@@ -76,6 +78,7 @@ export type Database = {
           delivered_at?: string | null
           http_status?: number | null
           id?: string
+          is_test?: boolean
           meta_event_name?: string
           meta_response?: Json | null
           retry_count?: number
@@ -105,6 +108,7 @@ export type Database = {
           fbp: string | null
           form_id: string | null
           id: string
+          is_test: boolean
           meta_leadgen_id: string | null
           phone_hash: string | null
           raw_field_data: Json | null
@@ -122,6 +126,7 @@ export type Database = {
           fbp?: string | null
           form_id?: string | null
           id?: string
+          is_test?: boolean
           meta_leadgen_id?: string | null
           phone_hash?: string | null
           raw_field_data?: Json | null
@@ -139,6 +144,7 @@ export type Database = {
           fbp?: string | null
           form_id?: string | null
           id?: string
+          is_test?: boolean
           meta_leadgen_id?: string | null
           phone_hash?: string | null
           raw_field_data?: Json | null
