@@ -13,12 +13,15 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state"); // = accounts.id
+        const state = url.searchParams.get("state");
         if (!code || !state) return redirect("/dashboard?meta_connect=error");
 
         const appId = process.env["META_APP_ID"];
         const appSecret = process.env["META_APP_SECRET"];
-        const redirectUri = process.env["META_OAUTH_REDIRECT_URI"];
+        const { getMetaRedirectUri, parseMetaOAuthState } = await import("@/lib/meta.server");
+        const redirectUri = getMetaRedirectUri(request.url);
+        const accountId = parseMetaOAuthState(state);
+        if (!accountId) return redirect("/dashboard?meta_connect=error");
         if (!appId || !appSecret || !redirectUri) return redirect("/dashboard?meta_connect=error");
 
         try {
@@ -55,10 +58,10 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
               meta_token_expires_at: expiresAt,
               status: "active",
             })
-            .eq("id", state);
+            .eq("id", accountId);
           if (error) return redirect("/dashboard?meta_connect=error");
 
-          return redirect(`/dashboard/select-ad-account?account=${encodeURIComponent(state)}`);
+          return redirect(`/dashboard/select-ad-account?account=${encodeURIComponent(accountId)}`);
         } catch {
           return redirect("/dashboard?meta_connect=error");
         }

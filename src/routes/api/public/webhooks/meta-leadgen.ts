@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { graphUrl, hashForMeta } from "@/lib/meta.server";
+import { createHmac, timingSafeEqual } from "crypto";
 
 // Receives real-time lead notifications from Meta Lead Ads.
 // GET: Meta webhook verification handshake (hub.challenge).
@@ -20,14 +20,27 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
       },
 
       POST: async ({ request }) => {
+        const bodyText = await request.text();
+        const appSecret = process.env["META_APP_SECRET"];
+        const signature = request.headers.get("x-hub-signature-256") ?? "";
+        if (appSecret) {
+          const expected = `sha256=${createHmac("sha256", appSecret).update(bodyText).digest("hex")}`;
+          const sig = Buffer.from(signature);
+          const exp = Buffer.from(expected);
+          if (sig.length !== exp.length || !timingSafeEqual(sig, exp)) {
+            return new Response("invalid_signature", { status: 401 });
+          }
+        }
+
         let payload: any;
         try {
-          payload = await request.json();
+          payload = JSON.parse(bodyText);
         } catch {
           return new Response("invalid_json", { status: 400 });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { graphUrl, hashForMeta } = await import("@/lib/meta.server");
 
         const changes: any[] = [];
         for (const entry of payload?.entry ?? []) {
@@ -74,7 +87,7 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
             // fbc/fbp/IP/user-agent typically come from a companion pixel event
             // on the same page as the Instant Form, not from the leadgen
             // payload itself — left null here when unavailable.
-            await supabaseAdmin.from("leads").insert({
+            await supabaseAdmin.from("leads").upsert({
               account_id: accountId,
               meta_leadgen_id: leadgenId,
               phone_hash: rawPhone ? hashForMeta(rawPhone.replace(/[^0-9]/g, "")) : null,
@@ -87,7 +100,7 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
               campaign_id: value.campaign_id ?? leadData.campaign_id ?? null,
               form_id: value.form_id ?? leadData.form_id ?? null,
               raw_field_data: leadData,
-            });
+            }, { onConflict: "account_id,meta_leadgen_id", ignoreDuplicates: true });
           }
         }
 

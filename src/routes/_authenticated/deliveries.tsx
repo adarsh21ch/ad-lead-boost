@@ -16,6 +16,16 @@ import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/deliveries")({
+  head: () => ({
+    meta: [
+      { title: "Delivery Log — AdsPro" },
+      { name: "description", content: "Inspect recent Conversions API delivery attempts and Meta responses in AdsPro." },
+      { property: "og:title", content: "Delivery Log — AdsPro" },
+      { property: "og:description", content: "Inspect recent Conversions API delivery attempts and Meta responses in AdsPro." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DeliveriesPage,
 });
 

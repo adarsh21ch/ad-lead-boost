@@ -11,6 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — AdsPro" },
+      { name: "description", content: "Monitor Meta Lead Ads account setup and lead-outcome sync status in AdsPro." },
+      { property: "og:title", content: "Dashboard — AdsPro" },
+      { property: "og:description", content: "Monitor Meta Lead Ads account setup and lead-outcome sync status in AdsPro." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DashboardPage,
 });
 

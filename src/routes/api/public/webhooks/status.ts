@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hashForMeta, LEAD_STATUSES } from "@/lib/meta.server";
+import { LEAD_STATUSES } from "@/lib/adspro.constants";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -45,22 +45,27 @@ export const Route = createFileRoute("/api/public/webhooks/status")({
         // Match lead_reference against meta_leadgen_id first, then the hashed
         // phone/email columns (hashing the raw reference the same way leads
         // were hashed at ingest). Scoped to this account only.
+        const { hashForMeta } = await import("@/lib/meta.server");
         const hashed = hashForMeta(leadReference);
-        const orFilter = [
-          `meta_leadgen_id.eq.${leadReference}`,
-          `phone_hash.eq.${hashed}`,
-          `email_hash.eq.${hashed}`,
-          `phone_hash.eq.${leadReference}`,
-          `email_hash.eq.${leadReference}`,
-        ].join(",");
-        const { data: lead } = await supabaseAdmin
+        const { data: exactLead } = await supabaseAdmin
           .from("leads")
           .select("id")
           .eq("account_id", account.id)
-          .or(orFilter)
           .order("created_at", { ascending: false })
           .limit(1)
+          .eq("meta_leadgen_id", leadReference)
           .maybeSingle();
+        const { data: hashedLead } = exactLead
+          ? { data: null }
+          : await supabaseAdmin
+              .from("leads")
+              .select("id")
+              .eq("account_id", account.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .or(`phone_hash.eq.${hashed},email_hash.eq.${hashed},phone_hash.eq.${leadReference},email_hash.eq.${leadReference}`)
+              .maybeSingle();
+        const lead = exactLead ?? hashedLead;
         if (!lead) return json({ error: "lead_not_found" }, 404);
 
         // Deliberately does NOT call Meta here — the capi-dispatcher delivers

@@ -1,27 +1,9 @@
 // Server-only helpers for Meta Graph API + CAPI delivery. Never import from client code.
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { STATUS_TO_META_EVENT, type LeadStatus } from "./adspro.constants";
 
 export const GRAPH_VERSION = "v21.0";
-
-export const LEAD_STATUSES = [
-  "contacted",
-  "qualified",
-  "not_qualified",
-  "booked",
-  "no_show",
-  "purchased",
-] as const;
-export type LeadStatus = (typeof LEAD_STATUSES)[number];
-
-export const STATUS_TO_META_EVENT: Record<LeadStatus, string> = {
-  contacted: "Lead_Contacted",
-  qualified: "Lead_Qualified",
-  not_qualified: "Lead_Disqualified",
-  booked: "Schedule",
-  no_show: "Lead_NoShow",
-  purchased: "Purchase",
-};
 
 /** Meta requires lowercase + trimmed values before SHA-256 hashing. */
 export function hashForMeta(value: string): string {
@@ -30,6 +12,31 @@ export function hashForMeta(value: string): string {
 
 export function graphUrl(path: string): string {
   return `https://graph.facebook.com/${GRAPH_VERSION}/${path}`;
+}
+
+export function getMetaRedirectUri(requestUrl?: string): string {
+  const configured = process.env["META_OAUTH_REDIRECT_URI"];
+  if (configured) return configured;
+  const appUrl = process.env["APP_URL"];
+  if (appUrl) return new URL("/api/public/auth/meta/callback", appUrl).toString();
+  if (requestUrl) return new URL("/api/public/auth/meta/callback", requestUrl).toString();
+  throw new Error("Meta OAuth redirect URI is not configured");
+}
+
+export function makeMetaOAuthState(accountId: string): string {
+  const secret = process.env["META_APP_SECRET"];
+  if (!secret) throw new Error("Meta OAuth is not configured");
+  const signature = createHash("sha256").update(`${accountId}.${secret}`).digest("hex");
+  return `${accountId}.${signature}`;
+}
+
+export function parseMetaOAuthState(state: string): string | null {
+  const secret = process.env["META_APP_SECRET"];
+  if (!secret) return null;
+  const [accountId, signature] = state.split(".");
+  if (!accountId || !signature) return null;
+  const expected = createHash("sha256").update(`${accountId}.${secret}`).digest("hex");
+  return signature === expected ? accountId : null;
 }
 
 type AdminClient = SupabaseClient<any>;
@@ -55,11 +62,13 @@ export async function deliverStatusEvent(
   ]);
 
   const fail = async (error: string, httpStatus: number | null = null, metaResponse: unknown = null) => {
+    const retryCount = await getRetryCount(admin, statusEvent.id);
     await admin.from("capi_delivery_logs").insert({
       status_event_id: statusEvent.id,
       meta_event_name: eventName,
       http_status: httpStatus,
       meta_response: metaResponse ?? { error },
+      retry_count: retryCount,
       delivered_at: null,
     });
     return { ok: false, httpStatus, error };
@@ -103,11 +112,13 @@ export async function deliverStatusEvent(
       },
     );
     const json = await res.json().catch(() => null);
+    const retryCount = await getRetryCount(admin, statusEvent.id);
     await admin.from("capi_delivery_logs").insert({
       status_event_id: statusEvent.id,
       meta_event_name: eventName,
       http_status: res.status,
       meta_response: json,
+      retry_count: retryCount,
       delivered_at: res.ok ? new Date().toISOString() : null,
     });
     return res.ok
@@ -116,6 +127,14 @@ export async function deliverStatusEvent(
   } catch (err) {
     return fail(err instanceof Error ? err.message : "network_error");
   }
+}
+
+async function getRetryCount(admin: AdminClient, statusEventId: string) {
+  const { data } = await admin
+    .from("capi_delivery_logs")
+    .select("id")
+    .eq("status_event_id", statusEventId);
+  return data?.length ?? 0;
 }
 
 /** Finds status_events rows with no capi_delivery_logs row yet. */
@@ -129,16 +148,20 @@ export async function findUndeliveredStatusEvents(admin: AdminClient, limit = 10
   const ids = events.map((e) => e.id);
   const { data: logs } = await admin
     .from("capi_delivery_logs")
-    .select("status_event_id")
+    .select("status_event_id, delivered_at, retry_count")
     .in("status_event_id", ids);
-  const delivered = new Set((logs ?? []).map((l) => l.status_event_id));
-  return events.filter((e) => !delivered.has(e.id));
-}
-
-export function assertLeadStatus(status: string): asserts status is LeadStatus {
-  if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
-    throw new Error(`Invalid status: ${status}`);
+  const logState = new Map<string, { delivered: boolean; attempts: number }>();
+  for (const log of logs ?? []) {
+    const current = logState.get(log.status_event_id) ?? { delivered: false, attempts: 0 };
+    logState.set(log.status_event_id, {
+      delivered: current.delivered || Boolean(log.delivered_at),
+      attempts: Math.max(current.attempts, (log.retry_count ?? 0) + 1),
+    });
   }
+  return events.filter((event) => {
+    const state = logState.get(event.id);
+    return !state?.delivered && (state?.attempts ?? 0) < 3;
+  });
 }
 
 export async function getOwnedAccountToken(supabase: any, accountId: string): Promise<string> {
