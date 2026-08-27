@@ -6,6 +6,7 @@ import {
   getIntegrationAccount,
   listAccountDeliveries,
   regenerateWebhookKey,
+  saveMetaPageId,
 } from "@/lib/adspro.functions";
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
@@ -88,12 +89,15 @@ function IntegrationPage() {
   const getAccountFn = useServerFn(getIntegrationAccount);
   const regenerateFn = useServerFn(regenerateWebhookKey);
   const listDeliveriesFn = useServerFn(listAccountDeliveries);
+  const savePageIdFn = useServerFn(saveMetaPageId);
 
   const [revealed, setRevealed] = useState(false);
   const [testCode, setTestCode] = useState("");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [pageId, setPageId] = useState<string | null>(null);
+  const [savingPageId, setSavingPageId] = useState(false);
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["integration-account"],
@@ -104,6 +108,8 @@ function IntegrationPage() {
   const tokenHealth = getTokenHealth(account ?? {});
   const tokenExpired = tokenHealth.state === "expired";
   const apiKey = (account?.webhook_api_key ?? "") as string;
+  const currentPageId =
+    ((account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id ?? "") as string;
 
   const { data: deliveries } = useQuery({
     queryKey: ["integration-deliveries"],
@@ -117,14 +123,35 @@ Authorization: Bearer ${revealed && apiKey ? apiKey : "<webhook_api_key>"}
 Content-Type: application/json
 
 {
-  "lead_reference": "<meta_leadgen_id, or the lead's phone, or email>",
+  "lead_reference": "<meta_leadgen_id>",
   "status": "qualified"
 }`;
 
   const curlExample = `curl -X POST ${WEBHOOK_URL} \\
   -H "Authorization: Bearer ${revealed && apiKey ? apiKey : "YOUR_KEY_HERE"}" \\
   -H "Content-Type: application/json" \\
-  -d '{"lead_reference":"+15551234567","status":"qualified"}'`;
+  -d '{"lead_reference":"1234567890123456","status":"qualified"}'`;
+
+
+  const savePage = async () => {
+    if (!account) return;
+    setSavingPageId(true);
+    try {
+      const res = await savePageIdFn({
+        data: { accountId: account.id, pageId: (pageId ?? currentPageId ?? "").trim() },
+      });
+      queryClient.setQueryData(["integration-account"], (prev: typeof account) =>
+        prev ? { ...prev, meta_page_id: res.meta_page_id } : prev,
+      );
+      toast.success(
+        res.meta_page_id ? "Page ID saved — inbound leads will be matched to this account" : "Page ID cleared",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save the Page ID");
+    } finally {
+      setSavingPageId(false);
+    }
+  };
 
   const regenerate = async () => {
     if (!account) return;
@@ -198,6 +225,48 @@ Content-Type: application/json
           </Card>
         ) : (
           <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Inbound leads — your Facebook Page ID</CardTitle>
+                <CardDescription>
+                  Meta's Lead Ads webhook is app-level, so AdsPro matches each incoming lead to
+                  your account by Page ID. Without it, your leads are dropped.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={pageId ?? currentPageId}
+                    onChange={(e) => setPageId(e.target.value)}
+                    placeholder="e.g. 102938475610293"
+                    className="max-w-xs font-mono text-xs"
+                  />
+                  <Button onClick={savePage} disabled={savingPageId}>
+                    {savingPageId ? "Saving…" : "Save Page ID"}
+                  </Button>
+                  {currentPageId ? <Badge variant="secondary">Mapped</Badge> : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Find it in Facebook Page settings → About → Page ID. Then subscribe your Page to
+                  the <code>leadgen</code> field in your Meta app's Webhooks settings.
+                </p>
+                <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    Match leads by <code>leadgen_id</code> — not phone or email
+                  </p>
+                  <p className="mt-1">
+                    AdsPro does not currently hold Meta's <code>leads_retrieval</code> permission,
+                    so the webhook delivers identifiers only: no name, email or phone. Leads are
+                    therefore stored without hashed PII, and status updates must send the Meta{" "}
+                    <code>leadgen_id</code> as <code>lead_reference</code>. Sending a phone number
+                    or email will return <code>404</code>. Meta's Conversions API accepts{" "}
+                    <code>lead_id</code> as the preferred match key for lead-ads conversions, so
+                    delivery and Conversion Leads optimization work fully without PII.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Your webhook endpoint</CardTitle>
@@ -286,7 +355,8 @@ Content-Type: application/json
                     <code>401</code> bad or missing key
                   </li>
                   <li>
-                    <code>404</code> no matching lead
+                    <code>404</code> no matching lead — check you sent the{" "}
+                    <code>leadgen_id</code>
                   </li>
                   <li>
                     <code>409</code> account not active
@@ -318,8 +388,9 @@ Content-Type: application/json
                     <strong>Payload Type</strong>: <code>json</code>
                   </li>
                   <li>
-                    <strong>Data</strong>: <code>lead_reference</code> = the lead's phone or email
-                    field from your CRM; <code>status</code> = one of the six values above.
+                    <strong>Data</strong>: <code>lead_reference</code> = the Meta{" "}
+                    <code>leadgen_id</code> stored against that lead in your CRM;{" "}
+                    <code>status</code> = one of the six values above.
                   </li>
                   <li>
                     <strong>Headers</strong>: <code>Authorization</code> ={" "}
