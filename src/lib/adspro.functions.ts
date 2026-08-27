@@ -405,8 +405,11 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
       pageName = page?.page_name ?? null;
     }
 
+    const { getServerAuthUser } = await import("@/integrations/supabase/session.server");
+    const authUser = await getServerAuthUser();
+
     return {
-      email: context.claims?.email ?? null,
+      email: authUser?.email ?? null,
       account,
       pageName,
     };
