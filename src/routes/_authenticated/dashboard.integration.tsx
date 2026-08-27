@@ -85,13 +85,8 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
-type PageRow = {
-  page_id: string;
-  page_name: string | null;
-  subscribe_status: string | null;
-  subscribe_error: string | null;
-  subscribed_at: string | null;
-};
+
+
 
 function IntegrationPage() {
   const queryClient = useQueryClient();
