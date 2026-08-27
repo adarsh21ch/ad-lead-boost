@@ -101,13 +101,8 @@ function IntegrationPage() {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [pages, setPages] = useState<PageRow[]>([]);
-  const [selectedPageId, setSelectedPageId] = useState("");
-  const [loadingPages, setLoadingPages] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [scopeMissing, setScopeMissing] = useState(false);
-  const [scopeMessage, setScopeMessage] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["integration-account"],
