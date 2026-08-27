@@ -69,6 +69,9 @@ function DashboardPage() {
   });
 
   const tokenHealth = getTokenHealth(account ?? {});
+  const pageStatus =
+    ((account as { page_subscribe_status?: string | null } | null | undefined)
+      ?.page_subscribe_status ?? null) as string | null;
 
   const connectMeta = async () => {
     setBusy(true);
