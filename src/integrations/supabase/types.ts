@@ -21,6 +21,7 @@ export type Database = {
           meta_access_token_encrypted: string | null
           meta_ad_account_id: string | null
           meta_dataset_id: string | null
+          meta_page_id: string | null
           meta_token_expires_at: string | null
           name: string
           owner_user_id: string
@@ -33,6 +34,7 @@ export type Database = {
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
           meta_dataset_id?: string | null
+          meta_page_id?: string | null
           meta_token_expires_at?: string | null
           name: string
           owner_user_id: string
@@ -45,6 +47,7 @@ export type Database = {
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
           meta_dataset_id?: string | null
+          meta_page_id?: string | null
           meta_token_expires_at?: string | null
           name?: string
           owner_user_id?: string
