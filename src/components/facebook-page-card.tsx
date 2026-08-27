@@ -72,9 +72,12 @@ export function FacebookPageCard({
     setScopeMessage(null);
     try {
       const res = await fetch("/api/public/pages/refresh", { method: "POST" });
-      const body = (await res.json().catch(() => null)) as
-        | { ok: boolean; pages?: PageRow[]; error?: string; message?: string }
-        | null;
+      const body = (await res.json().catch(() => null)) as {
+        ok: boolean;
+        pages?: PageRow[];
+        error?: string;
+        message?: string;
+      } | null;
       if (!body?.ok) {
         if (body?.error === "scope_missing") {
           setScopeMissing(true);

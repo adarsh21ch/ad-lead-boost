@@ -50,9 +50,8 @@ export const Route = createFileRoute("/api/public/pages/disconnect")({
           .maybeSingle();
         if (!owned) return json({ ok: false, error: "page_not_in_account" }, 403);
 
-        const { getOwnedAccountToken, graphUrl, graphGet, getMetaGraphErrorDetails } = await import(
-          "@/lib/meta.server"
-        );
+        const { getOwnedAccountToken, graphUrl, graphGet, getMetaGraphErrorDetails } =
+          await import("@/lib/meta.server");
 
         let pageToken: string | undefined;
         try {
@@ -138,7 +137,12 @@ export const Route = createFileRoute("/api/public/pages/disconnect")({
             .eq("id", account.id);
         }
 
-        return json({ ok: true, page_id: pageId, http_status: httpStatus, meta_response: metaResponse });
+        return json({
+          ok: true,
+          page_id: pageId,
+          http_status: httpStatus,
+          meta_response: metaResponse,
+        });
       },
     },
   },

@@ -87,9 +87,6 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
-
-
-
 function IntegrationPage() {
   const queryClient = useQueryClient();
   const getAccountFn = useServerFn(getIntegrationAccount);
@@ -104,7 +101,6 @@ function IntegrationPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
-
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["integration-account"],
@@ -121,7 +117,6 @@ function IntegrationPage() {
     queryFn: () => listPagesFn(),
     enabled: ready,
   });
-
 
   const { data: deliveries } = useQuery({
     queryKey: ["integration-deliveries"],
@@ -155,9 +150,6 @@ Content-Type: application/json
       setReconnecting(false);
     }
   };
-
-
-
 
   const regenerate = async () => {
     if (!account) return;
@@ -238,7 +230,8 @@ Content-Type: application/json
                   (account as { page_subscribe_status?: string | null }).page_subscribe_status ??
                   null,
                 page_subscribe_error:
-                  (account as { page_subscribe_error?: string | null }).page_subscribe_error ?? null,
+                  (account as { page_subscribe_error?: string | null }).page_subscribe_error ??
+                  null,
                 page_subscribed_at:
                   (account as { page_subscribed_at?: string | null }).page_subscribed_at ?? null,
               }}
@@ -246,7 +239,6 @@ Content-Type: application/json
               onReconnect={reconnectMeta}
               reconnecting={reconnecting}
             />
-
 
             <Card>
               <CardHeader>
@@ -336,8 +328,7 @@ Content-Type: application/json
                     <code>401</code> bad or missing key
                   </li>
                   <li>
-                    <code>404</code> no matching lead — check you sent the{" "}
-                    <code>leadgen_id</code>
+                    <code>404</code> no matching lead — check you sent the <code>leadgen_id</code>
                   </li>
                   <li>
                     <code>409</code> account not active
@@ -424,7 +415,9 @@ Content-Type: application/json
                 </div>
                 {tokenExpired && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-                    <p className="font-medium text-destructive">Your Meta connection has expired.</p>
+                    <p className="font-medium text-destructive">
+                      Your Meta connection has expired.
+                    </p>
                     <p className="mt-1 text-muted-foreground">
                       Test events cannot be sent until you reconnect Meta.
                     </p>
