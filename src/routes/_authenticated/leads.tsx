@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listLeads, setLeadStatus } from "@/lib/adspro.functions";
+import { getIntegrationAccount, listLeads, setLeadStatus } from "@/lib/adspro.functions";
 import { LEAD_STATUSES } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -42,10 +42,21 @@ function LeadsPage() {
   const listLeadsFn = useServerFn(listLeads);
   const setLeadStatusFn = useServerFn(setLeadStatus);
 
+  const getAccountFn = useServerFn(getIntegrationAccount);
+
   const { data: leads, isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: () => listLeadsFn(),
   });
+
+  const { data: account } = useQuery({
+    queryKey: ["integration-account"],
+    queryFn: () => getAccountFn(),
+  });
+
+  const pageConnected = Boolean(
+    (account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id,
+  );
 
   const updateStatus = async (leadId: string, status: string) => {
     try {
@@ -71,14 +82,31 @@ function LeadsPage() {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !leads?.length ? (
           <div className="rounded-md border p-6 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">No leads yet</p>
-            <p className="mt-1">
-              Leads land here automatically once Meta delivers your Lead Ads form submissions to
-              the AdsPro webhook. Check your webhook setup if you expect leads already.
-            </p>
-            <Button asChild variant="outline" size="sm" className="mt-3">
-              <Link to="/dashboard/integration">Open Integration setup</Link>
-            </Button>
+            {!pageConnected ? (
+              <>
+                <p className="font-medium text-foreground">No leads yet — connect your Page</p>
+                <p className="mt-1">
+                  AdsPro can't tell which of your accounts a Lead Ads submission belongs to until
+                  you save your Facebook Page ID. Add it on the Integration page, then submit a
+                  test lead from Meta's Lead Ads Testing Tool.
+                </p>
+                <Button asChild variant="outline" size="sm" className="mt-3">
+                  <Link to="/dashboard/integration">Save your Page ID</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-foreground">No leads matched yet</p>
+                <p className="mt-1">
+                  Your Page is mapped, so new Lead Ads submissions will appear here within seconds.
+                  If a lead is missing, the webhook subscription for the <code>leadgen</code> field
+                  may not be active on that Page.
+                </p>
+                <Button asChild variant="outline" size="sm" className="mt-3">
+                  <Link to="/dashboard/integration">Check integration setup</Link>
+                </Button>
+              </>
+            )}
           </div>
         ) : (
           <div className="rounded-md border">
@@ -88,6 +116,7 @@ function LeadsPage() {
                   <TableHead>Created</TableHead>
                   <TableHead>Leadgen ID</TableHead>
                   <TableHead>Campaign</TableHead>
+                  <TableHead>Ad</TableHead>
                   <TableHead>Current status</TableHead>
                   <TableHead>Set status</TableHead>
                 </TableRow>
@@ -103,6 +132,9 @@ function LeadsPage() {
                     </TableCell>
                     <TableCell className="max-w-[140px] truncate font-mono text-xs">
                       {lead.campaign_id ?? "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] truncate font-mono text-xs">
+                      {lead.ad_id ?? "—"}
                     </TableCell>
                     <TableCell>
                       {lead.latest_status ? (
