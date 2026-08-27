@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,7 +29,7 @@ function Index() {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <span className="text-lg font-semibold">AdsPro</span>
+          <BrandLogo />
           <Button asChild size="sm">
             <Link to="/auth">Sign in</Link>
           </Button>
@@ -75,7 +76,10 @@ function Index() {
 
       <footer className="border-t px-4 py-6">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
-          <span>© 2026 Nevorai Technologies. All rights reserved.</span>
+          <span className="flex items-center gap-2">
+            <BrandLogo size="sm" withWordmark={false} />
+            <span>© 2026 Nevorai Technologies. All rights reserved.</span>
+          </span>
           <nav className="flex gap-4">
             <Link to="/privacy" className="hover:text-foreground">
               Privacy
