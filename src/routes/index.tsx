@@ -28,7 +28,7 @@ function Index() {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <span className="text-lg font-semibold">AdsPro</span>
+          <BrandLogo />
           <Button asChild size="sm">
             <Link to="/auth">Sign in</Link>
           </Button>
