@@ -29,8 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="flex w-56 shrink-0 flex-col border-r">
         <div className="flex h-14 items-center border-b px-4">
-          <Link to="/dashboard" className="text-lg font-semibold">
-            AdsPro
+          <Link to="/dashboard">
+            <BrandLogo />
           </Link>
         </div>
         <nav className="flex-1 space-y-1 p-3">
