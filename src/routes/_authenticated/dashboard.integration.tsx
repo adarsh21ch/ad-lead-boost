@@ -1,12 +1,13 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getIntegrationAccount,
+  getMetaConnectUrl,
   listAccountDeliveries,
+  listMetaPages,
   regenerateWebhookKey,
-  saveMetaPageId,
 } from "@/lib/adspro.functions";
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
@@ -84,20 +85,34 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+type PageRow = {
+  page_id: string;
+  page_name: string | null;
+  subscribe_status: string | null;
+  subscribe_error: string | null;
+  subscribed_at: string | null;
+};
+
 function IntegrationPage() {
   const queryClient = useQueryClient();
   const getAccountFn = useServerFn(getIntegrationAccount);
   const regenerateFn = useServerFn(regenerateWebhookKey);
   const listDeliveriesFn = useServerFn(listAccountDeliveries);
-  const savePageIdFn = useServerFn(saveMetaPageId);
+  const listPagesFn = useServerFn(listMetaPages);
+  const getMetaConnectUrlFn = useServerFn(getMetaConnectUrl);
 
   const [revealed, setRevealed] = useState(false);
   const [testCode, setTestCode] = useState("");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [pageId, setPageId] = useState<string | null>(null);
-  const [savingPageId, setSavingPageId] = useState(false);
+  const [pages, setPages] = useState<PageRow[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [scopeMissing, setScopeMissing] = useState(false);
+  const [scopeMessage, setScopeMessage] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["integration-account"],
@@ -110,6 +125,20 @@ function IntegrationPage() {
   const apiKey = (account?.webhook_api_key ?? "") as string;
   const currentPageId =
     ((account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id ?? "") as string;
+
+  const { data: storedPages } = useQuery({
+    queryKey: ["meta-pages"],
+    queryFn: () => listPagesFn(),
+    enabled: ready,
+  });
+
+  useEffect(() => {
+    if (!storedPages) return;
+    setPages((prev) => (prev.length ? prev : (storedPages as PageRow[])));
+    setSelectedPageId((prev) => prev || currentPageId || (storedPages[0]?.page_id ?? ""));
+  }, [storedPages, currentPageId]);
+
+  const selectedPage = pages.find((p) => p.page_id === selectedPageId) ?? null;
 
   const { data: deliveries } = useQuery({
     queryKey: ["integration-deliveries"],
@@ -132,24 +161,97 @@ Content-Type: application/json
   -H "Content-Type: application/json" \\
   -d '{"lead_reference":"1234567890123456","status":"qualified"}'`;
 
-
-  const savePage = async () => {
+  const reconnectMeta = async () => {
     if (!account) return;
-    setSavingPageId(true);
+    setReconnecting(true);
     try {
-      const res = await savePageIdFn({
-        data: { accountId: account.id, pageId: (pageId ?? currentPageId ?? "").trim() },
-      });
-      queryClient.setQueryData(["integration-account"], (prev: typeof account) =>
-        prev ? { ...prev, meta_page_id: res.meta_page_id } : prev,
-      );
-      toast.success(
-        res.meta_page_id ? "Page ID saved — inbound leads will be matched to this account" : "Page ID cleared",
-      );
+      const url = await getMetaConnectUrlFn({ data: { accountId: account.id } });
+      window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save the Page ID");
+      toast.error(err instanceof Error ? err.message : "Could not start Meta reconnect");
+      setReconnecting(false);
+    }
+  };
+
+  const loadPages = async () => {
+    setLoadingPages(true);
+    setScopeMissing(false);
+    setScopeMessage(null);
+    try {
+      const res = await fetch("/api/public/pages/refresh", { method: "POST" });
+      const body = (await res.json().catch(() => null)) as
+        | { ok: boolean; pages?: PageRow[]; error?: string; message?: string }
+        | null;
+      if (!body?.ok) {
+        if (body?.error === "scope_missing") {
+          setScopeMissing(true);
+          setScopeMessage(body.message ?? null);
+        } else {
+          toast.error(body?.message ?? body?.error ?? "Could not load your Pages");
+        }
+        return;
+      }
+      const list = body.pages ?? [];
+      setPages(list);
+      setSelectedPageId((prev) => prev || currentPageId || (list[0]?.page_id ?? ""));
+      toast.success(list.length ? `${list.length} Page(s) found` : "Meta returned no Pages");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load your Pages");
     } finally {
-      setSavingPageId(false);
+      setLoadingPages(false);
+    }
+  };
+
+  const connectPage = async () => {
+    if (!selectedPageId) return;
+    setConnecting(true);
+    try {
+      const res = await fetch("/api/public/pages/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ page_id: selectedPageId }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { ok: boolean; error?: string; message?: string; subscribed_at?: string }
+        | null;
+      if (body?.ok) {
+        setPages((prev) =>
+          prev.map((p) =>
+            p.page_id === selectedPageId
+              ? {
+                  ...p,
+                  subscribe_status: "subscribed",
+                  subscribe_error: null,
+                  subscribed_at: body.subscribed_at ?? new Date().toISOString(),
+                }
+              : p,
+          ),
+        );
+        toast.success("Page connected — leads will arrive automatically");
+      } else {
+        if (body?.error === "scope_missing") {
+          setScopeMissing(true);
+          setScopeMessage(body.message ?? null);
+        }
+        setPages((prev) =>
+          prev.map((p) =>
+            p.page_id === selectedPageId
+              ? {
+                  ...p,
+                  subscribe_status: "failed",
+                  subscribe_error: body?.message ?? body?.error ?? "Meta rejected the request",
+                }
+              : p,
+          ),
+        );
+        toast.error(body?.message ?? "Could not connect this Page");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not connect this Page");
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -227,37 +329,96 @@ Content-Type: application/json
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Inbound leads — your Facebook Page ID</CardTitle>
+                <CardTitle className="text-base">Facebook Page</CardTitle>
                 <CardDescription>
-                  Meta's Lead Ads webhook is app-level, so AdsPro matches each incoming lead to
-                  your account by Page ID. Without it, your leads are dropped.
+                  AdsPro subscribes your Page to Meta's <code>leadgen</code> webhook for you — pick
+                  the Page your lead ads run from.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={pageId ?? currentPageId}
-                    onChange={(e) => setPageId(e.target.value)}
-                    placeholder="e.g. 102938475610293"
-                    className="max-w-xs font-mono text-xs"
-                  />
-                  <Button onClick={savePage} disabled={savingPageId}>
-                    {savingPageId ? "Saving…" : "Save Page ID"}
-                  </Button>
-                  {currentPageId ? <Badge variant="secondary">Mapped</Badge> : null}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Find it in Facebook Page settings → About → Page ID. Then subscribe your Page to
-                  the <code>leadgen</code> field in your Meta app's Webhooks settings.
-                </p>
+                {scopeMissing ? (
+                  <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium text-amber-700 dark:text-amber-400">
+                      Your Meta connection was made before Page support was added. Reconnect once to
+                      enable automatic Page connection.
+                    </p>
+                    {scopeMessage ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{scopeMessage}</p>
+                    ) : null}
+                    <Button size="sm" className="mt-2" onClick={reconnectMeta} disabled={reconnecting}>
+                      {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" onClick={loadPages} disabled={loadingPages}>
+                        {loadingPages ? "Loading…" : "Load my Pages"}
+                      </Button>
+                      {pages.length > 0 && (
+                        <>
+                          <select
+                            value={selectedPageId}
+                            onChange={(e) => setSelectedPageId(e.target.value)}
+                            className="h-9 max-w-xs rounded-md border bg-background px-2 text-sm"
+                          >
+                            {pages.map((p) => (
+                              <option key={p.page_id} value={p.page_id}>
+                                {p.page_name ?? "Unnamed Page"} ({p.page_id})
+                              </option>
+                            ))}
+                          </select>
+                          <Button onClick={connectPage} disabled={connecting || !selectedPageId}>
+                            {connecting ? "Connecting…" : "Connect"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {selectedPage?.subscribe_status === "subscribed" ? (
+                      <div className="rounded-md border border-emerald-500/50 bg-emerald-500/10 p-3 text-sm">
+                        <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                          Connected — leads from this Page will arrive automatically
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Subscribed{" "}
+                          {selectedPage.subscribed_at
+                            ? new Date(selectedPage.subscribed_at).toLocaleString()
+                            : "—"}
+                        </p>
+                      </div>
+                    ) : selectedPage?.subscribe_status === "failed" ? (
+                      <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                        <p className="font-medium text-destructive">
+                          Page connection failed — no leads are arriving from this Page.
+                        </p>
+                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-muted px-2 py-1 text-xs">
+                          {selectedPage.subscribe_error || "Meta returned no message."}
+                        </pre>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={connectPage}
+                          disabled={connecting}
+                        >
+                          {connecting ? "Retrying…" : "Retry"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Choose the Page your lead ads run from.
+                      </p>
+                    )}
+                  </>
+                )}
+
                 <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">
                     Match leads by <code>leadgen_id</code> — not phone or email
                   </p>
                   <p className="mt-1">
-                    AdsPro does not currently hold Meta's <code>leads_retrieval</code> permission,
-                    so the webhook delivers identifiers only: no name, email or phone. Leads are
-                    therefore stored without hashed PII, and status updates must send the Meta{" "}
+                    Leads arrive as identifiers only, so status updates must send the Meta{" "}
                     <code>leadgen_id</code> as <code>lead_reference</code>. Sending a phone number
                     or email will return <code>404</code>. Meta's Conversions API accepts{" "}
                     <code>lead_id</code> as the preferred match key for lead-ads conversions, so

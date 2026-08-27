@@ -46,7 +46,7 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
       `https://www.facebook.com/v21.0/dialog/oauth?client_id=${encodeURIComponent(appId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${encodeURIComponent(state)}` +
-      `&scope=ads_management,business_management`
+      `&scope=ads_management,business_management,pages_show_list,pages_manage_metadata,leads_retrieval`
     );
   });
 
@@ -298,7 +298,9 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
-      .select("id, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, webhook_api_key")
+      .select(
+        "id, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at",
+      )
       .order("created_at", { ascending: true })
       .limit(1);
     if (error) throw error;
@@ -367,30 +369,14 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
     });
   });
 
-export const saveMetaPageId = createServerFn({ method: "POST" })
+/** Pages discovered for the caller's account (read-only; writes happen in the API routes). */
+export const listMetaPages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { accountId: string; pageId: string }) => {
-    if (!data?.accountId) throw new Error("accountId is required");
-    const pageId = (data.pageId ?? "").trim();
-    if (pageId && !/^\d{5,25}$/.test(pageId)) {
-      throw new Error("Page ID must be the numeric Facebook Page ID");
-    }
-    return { accountId: data.accountId, pageId };
-  })
-  .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: owned, error: ownErr } = await supabaseAdmin
-      .from("accounts")
-      .select("id, owner_user_id")
-      .eq("id", data.accountId)
-      .maybeSingle();
-    if (ownErr) throw ownErr;
-    if (!owned || owned.owner_user_id !== context.userId) throw new Error("Account not found");
-
-    const { error } = await supabaseAdmin
-      .from("accounts")
-      .update({ meta_page_id: data.pageId || null })
-      .eq("id", owned.id);
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("meta_pages")
+      .select("page_id, page_name, subscribe_status, subscribe_error, subscribed_at")
+      .order("page_name", { ascending: true });
     if (error) throw error;
-    return { meta_page_id: data.pageId || null };
+    return data ?? [];
   });
