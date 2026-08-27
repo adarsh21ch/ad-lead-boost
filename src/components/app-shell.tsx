@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
