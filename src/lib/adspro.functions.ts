@@ -380,3 +380,34 @@ export const listMetaPages = createServerFn({ method: "GET" })
     if (error) throw error;
     return data ?? [];
   });
+
+/** Read-only overview for the Settings page. Never returns token material. */
+export const getSettingsOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("accounts")
+      .select(
+        "id, name, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
+      )
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const account = data?.[0] ?? null;
+
+    let pageName: string | null = null;
+    if (account?.meta_page_id) {
+      const { data: page } = await context.supabase
+        .from("meta_pages")
+        .select("page_name")
+        .eq("page_id", account.meta_page_id)
+        .maybeSingle();
+      pageName = page?.page_name ?? null;
+    }
+
+    return {
+      email: context.claims?.email ?? null,
+      account,
+      pageName,
+    };
+  });

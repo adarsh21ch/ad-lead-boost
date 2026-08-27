@@ -23,6 +23,8 @@ import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardIntegrationRouteImport } from './routes/_authenticated/dashboard.integration'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
 import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test-event'
+import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account/delete'
+import { Route as ApiPublicAccountDisconnectMetaRouteImport } from './routes/api/public/account/disconnect-meta'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
 import { Route as ApiPublicPagesConnectRouteImport } from './routes/api/public/pages/connect'
 import { Route as ApiPublicPagesDisconnectRouteImport } from './routes/api/public/pages/disconnect'
@@ -103,6 +105,17 @@ const ApiPublicTestEventRoute = ApiPublicTestEventRouteImport.update({
   path: '/api/public/test-event',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAccountDeleteRoute = ApiPublicAccountDeleteRouteImport.update({
+  id: '/api/public/account/delete',
+  path: '/api/public/account/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAccountDisconnectMetaRoute =
+  ApiPublicAccountDisconnectMetaRouteImport.update({
+    id: '/api/public/account/disconnect-meta',
+    path: '/api/public/account/disconnect-meta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronCapiDispatcherRoute =
   ApiPublicCronCapiDispatcherRouteImport.update({
     id: '/api/public/cron/capi-dispatcher',
@@ -157,6 +170,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -178,6 +193,8 @@ export interface FileRoutesByTo {
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -202,6 +219,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -226,6 +245,8 @@ export interface FileRouteTypes {
     | '/dashboard/select-ad-account'
     | '/api/public/test-event'
     | '/dashboard/'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -247,6 +268,8 @@ export interface FileRouteTypes {
     | '/dashboard/select-ad-account'
     | '/api/public/test-event'
     | '/dashboard'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -270,6 +293,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/select-ad-account'
     | '/api/public/test-event'
     | '/_authenticated/dashboard/'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -287,6 +312,8 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiPublicTestEventRoute: typeof ApiPublicTestEventRoute
+  ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
+  ApiPublicAccountDisconnectMetaRoute: typeof ApiPublicAccountDisconnectMetaRoute
   ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
   ApiPublicPagesConnectRoute: typeof ApiPublicPagesConnectRoute
   ApiPublicPagesDisconnectRoute: typeof ApiPublicPagesDisconnectRoute
@@ -396,6 +423,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTestEventRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/account/delete': {
+      id: '/api/public/account/delete'
+      path: '/api/public/account/delete'
+      fullPath: '/api/public/account/delete'
+      preLoaderRoute: typeof ApiPublicAccountDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/account/disconnect-meta': {
+      id: '/api/public/account/disconnect-meta'
+      path: '/api/public/account/disconnect-meta'
+      fullPath: '/api/public/account/disconnect-meta'
+      preLoaderRoute: typeof ApiPublicAccountDisconnectMetaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/capi-dispatcher': {
       id: '/api/public/cron/capi-dispatcher'
       path: '/api/public/cron/capi-dispatcher'
@@ -501,6 +542,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiPublicTestEventRoute: ApiPublicTestEventRoute,
+  ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
+  ApiPublicAccountDisconnectMetaRoute: ApiPublicAccountDisconnectMetaRoute,
   ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
   ApiPublicPagesConnectRoute: ApiPublicPagesConnectRoute,
   ApiPublicPagesDisconnectRoute: ApiPublicPagesDisconnectRoute,
