@@ -154,87 +154,8 @@ Content-Type: application/json
     }
   };
 
-  const loadPages = async () => {
-    setLoadingPages(true);
-    setScopeMissing(false);
-    setScopeMessage(null);
-    try {
-      const res = await fetch("/api/public/pages/refresh", { method: "POST" });
-      const body = (await res.json().catch(() => null)) as
-        | { ok: boolean; pages?: PageRow[]; error?: string; message?: string }
-        | null;
-      if (!body?.ok) {
-        if (body?.error === "scope_missing") {
-          setScopeMissing(true);
-          setScopeMessage(body.message ?? null);
-        } else {
-          toast.error(body?.message ?? body?.error ?? "Could not load your Pages");
-        }
-        return;
-      }
-      const list = body.pages ?? [];
-      setPages(list);
-      setSelectedPageId((prev) => prev || currentPageId || (list[0]?.page_id ?? ""));
-      toast.success(list.length ? `${list.length} Page(s) found` : "Meta returned no Pages");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not load your Pages");
-    } finally {
-      setLoadingPages(false);
-    }
-  };
 
-  const connectPage = async () => {
-    if (!selectedPageId) return;
-    setConnecting(true);
-    try {
-      const res = await fetch("/api/public/pages/connect", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ page_id: selectedPageId }),
-      });
-      const body = (await res.json().catch(() => null)) as
-        | { ok: boolean; error?: string; message?: string; subscribed_at?: string }
-        | null;
-      if (body?.ok) {
-        setPages((prev) =>
-          prev.map((p) =>
-            p.page_id === selectedPageId
-              ? {
-                  ...p,
-                  subscribe_status: "subscribed",
-                  subscribe_error: null,
-                  subscribed_at: body.subscribed_at ?? new Date().toISOString(),
-                }
-              : p,
-          ),
-        );
-        toast.success("Page connected — leads will arrive automatically");
-      } else {
-        if (body?.error === "scope_missing") {
-          setScopeMissing(true);
-          setScopeMessage(body.message ?? null);
-        }
-        setPages((prev) =>
-          prev.map((p) =>
-            p.page_id === selectedPageId
-              ? {
-                  ...p,
-                  subscribe_status: "failed",
-                  subscribe_error: body?.message ?? body?.error ?? "Meta rejected the request",
-                }
-              : p,
-          ),
-        );
-        toast.error(body?.message ?? "Could not connect this Page");
-      }
-      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
-      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not connect this Page");
-    } finally {
-      setConnecting(false);
-    }
-  };
+
 
   const regenerate = async () => {
     if (!account) return;
