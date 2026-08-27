@@ -298,7 +298,7 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
-      .select("id, status, meta_ad_account_id, meta_dataset_id, meta_token_expires_at, webhook_api_key")
+      .select("id, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, webhook_api_key")
       .order("created_at", { ascending: true })
       .limit(1);
     if (error) throw error;
@@ -365,4 +365,32 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
         attempt: (row.retry_count ?? 0) + 1,
       };
     });
+  });
+
+export const saveMetaPageId = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { accountId: string; pageId: string }) => {
+    if (!data?.accountId) throw new Error("accountId is required");
+    const pageId = (data.pageId ?? "").trim();
+    if (pageId && !/^\d{5,25}$/.test(pageId)) {
+      throw new Error("Page ID must be the numeric Facebook Page ID");
+    }
+    return { accountId: data.accountId, pageId };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: owned, error: ownErr } = await supabaseAdmin
+      .from("accounts")
+      .select("id, owner_user_id")
+      .eq("id", data.accountId)
+      .maybeSingle();
+    if (ownErr) throw ownErr;
+    if (!owned || owned.owner_user_id !== context.userId) throw new Error("Account not found");
+
+    const { error } = await supabaseAdmin
+      .from("accounts")
+      .update({ meta_page_id: data.pageId || null })
+      .eq("id", owned.id);
+    if (error) throw error;
+    return { meta_page_id: data.pageId || null };
   });
