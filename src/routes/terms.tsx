@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -27,8 +28,8 @@ function TermsPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <Link to="/" className="text-lg font-semibold text-foreground">
-            AdsPro
+          <Link to="/">
+            <BrandLogo />
           </Link>
           <ButtonLink to="/auth">Sign in</ButtonLink>
         </div>
