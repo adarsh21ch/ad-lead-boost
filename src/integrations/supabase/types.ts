@@ -25,6 +25,9 @@ export type Database = {
           meta_token_expires_at: string | null
           name: string
           owner_user_id: string
+          page_subscribe_error: string | null
+          page_subscribe_status: string | null
+          page_subscribed_at: string | null
           status: string
           webhook_api_key: string
         }
@@ -38,6 +41,9 @@ export type Database = {
           meta_token_expires_at?: string | null
           name: string
           owner_user_id: string
+          page_subscribe_error?: string | null
+          page_subscribe_status?: string | null
+          page_subscribed_at?: string | null
           status?: string
           webhook_api_key?: string
         }
@@ -51,6 +57,9 @@ export type Database = {
           meta_token_expires_at?: string | null
           name?: string
           owner_user_id?: string
+          page_subscribe_error?: string | null
+          page_subscribe_status?: string | null
+          page_subscribed_at?: string | null
           status?: string
           webhook_api_key?: string
         }
@@ -155,6 +164,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_pages: {
+        Row: {
+          account_id: string
+          discovered_at: string
+          id: string
+          page_id: string
+          page_name: string | null
+          subscribe_error: string | null
+          subscribe_status: string
+          subscribed_at: string | null
+        }
+        Insert: {
+          account_id: string
+          discovered_at?: string
+          id?: string
+          page_id: string
+          page_name?: string | null
+          subscribe_error?: string | null
+          subscribe_status?: string
+          subscribed_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          discovered_at?: string
+          id?: string
+          page_id?: string
+          page_name?: string | null
+          subscribe_error?: string | null
+          subscribe_status?: string
+          subscribed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_pages_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
