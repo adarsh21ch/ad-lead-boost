@@ -76,7 +76,10 @@ function Index() {
 
       <footer className="border-t px-4 py-6">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
-          <span>© 2026 Nevorai Technologies. All rights reserved.</span>
+          <span className="flex items-center gap-2">
+            <BrandLogo size="sm" withWordmark={false} />
+            <span>© 2026 Nevorai Technologies. All rights reserved.</span>
+          </span>
           <nav className="flex gap-4">
             <Link to="/privacy" className="hover:text-foreground">
               Privacy
