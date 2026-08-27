@@ -371,8 +371,9 @@ export function FacebookPageCard({
       <CardHeader>
         <CardTitle className="text-base">Facebook Page</CardTitle>
         <CardDescription>
-          AdsPro subscribes your Page to Meta's <code>leadgen</code> webhook for you — pick the Page
-          your lead ads run from.
+          {isConnected && !changing
+            ? "AdsPro is listening for new leads from this Page."
+            : "AdsPro subscribes your Page to Meta's leadgen webhook for you — pick the Page your lead ads run from."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
