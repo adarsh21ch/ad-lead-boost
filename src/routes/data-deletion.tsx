@@ -43,19 +43,64 @@ function DataDeletionPage() {
             Data Deletion Instructions
           </h1>
 
-          <Section title="For AdsPro customers">
+          <Section title="For AdsPro customers — disconnect Meta only">
             <p>
-              To delete your AdsPro account and disconnect Meta:
+              This revokes AdsPro's access to your Meta account and stops all lead
+              flow and conversion syncing. Your existing lead history stays in AdsPro.
             </p>
             <ol>
-              <li>Sign in to AdsPro and open the dashboard.</li>
-              <li>Disconnect your Meta ad account from the integration settings.</li>
-              <li>Delete your AdsPro account from the account settings page.</li>
+              <li>Sign in to AdsPro at adsproindia.com.</li>
+              <li>
+                In the left sidebar, click <strong>Settings</strong>.
+              </li>
+              <li>
+                Scroll to the <strong>Meta connection</strong> section.
+              </li>
+              <li>
+                Click <strong>Disconnect Meta</strong>, then confirm by clicking{" "}
+                <strong>Disconnect</strong> in the dialog.
+              </li>
             </ol>
             <p>
-              Disconnecting AdsPro from your Meta account via Meta Settings → Business
-              Integrations immediately revokes our access token, and we can no longer
-              call Meta APIs on your behalf.
+              AdsPro then unsubscribes your Facebook Page from lead notifications, calls
+              Meta's <code>DELETE /me/permissions</code> endpoint to revoke every
+              permission you granted, and erases your stored Meta access token, ad
+              account, dataset and Page from our database.
+            </p>
+            <p>
+              You may also revoke access from Meta's side at any time via Meta Settings →
+              Business Integrations.
+            </p>
+          </Section>
+
+          <Section title="For AdsPro customers — delete your account and all data">
+            <p>
+              This permanently removes your AdsPro account, every lead, every status
+              event, and every delivery record. This cannot be undone.
+            </p>
+            <ol>
+              <li>Sign in to AdsPro at adsproindia.com.</li>
+              <li>
+                In the left sidebar, click <strong>Settings</strong>.
+              </li>
+              <li>
+                Scroll to the <strong>Danger zone</strong> section at the bottom of the
+                page.
+              </li>
+              <li>
+                In the field labelled <strong>Type DELETE to confirm</strong>, type{" "}
+                <strong>DELETE</strong> exactly (uppercase). The button stays disabled
+                until you do.
+              </li>
+              <li>
+                Click <strong>Delete my account and all data</strong>.
+              </li>
+            </ol>
+            <p>
+              AdsPro first revokes your Meta access (the same steps as Disconnect Meta),
+              then deletes your account row — which cascades to all of your leads, status
+              events, delivery logs and Page records — and finally deletes your login. You
+              are signed out immediately and the deletion is irreversible.
             </p>
           </Section>
 
@@ -75,10 +120,13 @@ function DataDeletionPage() {
           <Section title="What happens after deletion">
             <p>
               Once your deletion request is processed, lead records and hashed identifiers
-              are removed in accordance with our Privacy Policy. Customer account data is
-              deleted within 30 days of account closure.
+              are removed in accordance with our Privacy Policy. Lead records are in any
+              case retained for no more than 90 days from creation. Customer account data
+              deleted through the Danger zone is removed immediately; account data deleted
+              by request is removed within 30 days of account closure.
             </p>
           </Section>
+
         </article>
       </main>
 

@@ -22,7 +22,10 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardIntegrationRouteImport } from './routes/_authenticated/dashboard.integration'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
+import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard.settings'
 import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test-event'
+import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account/delete'
+import { Route as ApiPublicAccountDisconnectMetaRouteImport } from './routes/api/public/account/disconnect-meta'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
 import { Route as ApiPublicPagesConnectRouteImport } from './routes/api/public/pages/connect'
 import { Route as ApiPublicPagesDisconnectRouteImport } from './routes/api/public/pages/disconnect'
@@ -98,11 +101,28 @@ const AuthenticatedDashboardSelectAdAccountRoute =
     path: '/select-ad-account',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedDashboardSettingsRoute =
+  AuthenticatedDashboardSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const ApiPublicTestEventRoute = ApiPublicTestEventRouteImport.update({
   id: '/api/public/test-event',
   path: '/api/public/test-event',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAccountDeleteRoute = ApiPublicAccountDeleteRouteImport.update({
+  id: '/api/public/account/delete',
+  path: '/api/public/account/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAccountDisconnectMetaRoute =
+  ApiPublicAccountDisconnectMetaRouteImport.update({
+    id: '/api/public/account/disconnect-meta',
+    path: '/api/public/account/disconnect-meta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronCapiDispatcherRoute =
   ApiPublicCronCapiDispatcherRouteImport.update({
     id: '/api/public/cron/capi-dispatcher',
@@ -155,8 +175,11 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -176,8 +199,11 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -200,8 +226,11 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
@@ -224,8 +253,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/dashboard/settings'
     | '/api/public/test-event'
     | '/dashboard/'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -245,8 +277,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/dashboard/settings'
     | '/api/public/test-event'
     | '/dashboard'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -268,8 +303,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/_authenticated/dashboard/integration'
     | '/_authenticated/dashboard/select-ad-account'
+    | '/_authenticated/dashboard/settings'
     | '/api/public/test-event'
     | '/_authenticated/dashboard/'
+    | '/api/public/account/delete'
+    | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
@@ -287,6 +325,8 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiPublicTestEventRoute: typeof ApiPublicTestEventRoute
+  ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
+  ApiPublicAccountDisconnectMetaRoute: typeof ApiPublicAccountDisconnectMetaRoute
   ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
   ApiPublicPagesConnectRoute: typeof ApiPublicPagesConnectRoute
   ApiPublicPagesDisconnectRoute: typeof ApiPublicPagesDisconnectRoute
@@ -389,11 +429,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardSelectAdAccountRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/dashboard/settings': {
+      id: '/_authenticated/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/api/public/test-event': {
       id: '/api/public/test-event'
       path: '/api/public/test-event'
       fullPath: '/api/public/test-event'
       preLoaderRoute: typeof ApiPublicTestEventRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/account/delete': {
+      id: '/api/public/account/delete'
+      path: '/api/public/account/delete'
+      fullPath: '/api/public/account/delete'
+      preLoaderRoute: typeof ApiPublicAccountDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/account/disconnect-meta': {
+      id: '/api/public/account/disconnect-meta'
+      path: '/api/public/account/disconnect-meta'
+      fullPath: '/api/public/account/disconnect-meta'
+      preLoaderRoute: typeof ApiPublicAccountDisconnectMetaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/capi-dispatcher': {
@@ -451,6 +512,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardIntegrationRoute: typeof AuthenticatedDashboardIntegrationRoute
   AuthenticatedDashboardSelectAdAccountRoute: typeof AuthenticatedDashboardSelectAdAccountRoute
+  AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
 }
 
@@ -460,6 +522,7 @@ const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
       AuthenticatedDashboardIntegrationRoute,
     AuthenticatedDashboardSelectAdAccountRoute:
       AuthenticatedDashboardSelectAdAccountRoute,
+    AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
     AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   }
 
@@ -501,6 +564,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiPublicTestEventRoute: ApiPublicTestEventRoute,
+  ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
+  ApiPublicAccountDisconnectMetaRoute: ApiPublicAccountDisconnectMetaRoute,
   ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
   ApiPublicPagesConnectRoute: ApiPublicPagesConnectRoute,
   ApiPublicPagesDisconnectRoute: ApiPublicPagesDisconnectRoute,

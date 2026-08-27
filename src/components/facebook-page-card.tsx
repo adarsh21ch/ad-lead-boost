@@ -265,13 +265,16 @@ export function FacebookPageCard({
     inner = scopeBlock;
   } else if (isConnected && changing) {
     // STATE C — changing
+    const switching = Boolean(selectedPageId) && selectedPageId !== connectedPageId;
     inner = (
       <div className="space-y-3">
         {picker}
-        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
-          Leads from {pageLabel(pages, connectedPageId) || connectedPageId} will stop arriving once
-          you switch.
-        </div>
+        {switching ? (
+          <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+            Leads from {pageLabel(pages, connectedPageId) || connectedPageId} will stop arriving.
+            Leads from {pageLabel(pages, selectedPageId) || selectedPageId} will start.
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={switchPage}
@@ -368,8 +371,9 @@ export function FacebookPageCard({
       <CardHeader>
         <CardTitle className="text-base">Facebook Page</CardTitle>
         <CardDescription>
-          AdsPro subscribes your Page to Meta's <code>leadgen</code> webhook for you — pick the Page
-          your lead ads run from.
+          {isConnected && !changing
+            ? "AdsPro is listening for new leads from this Page."
+            : "AdsPro subscribes your Page to Meta's leadgen webhook for you — pick the Page your lead ads run from."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -128,6 +128,18 @@ function PrivacyPage() {
               Customer account data is retained while the account is active and is
               deleted within 30 days of account closure.
             </p>
+            <p>
+              You can delete everything yourself at any time: sign in and go to{" "}
+              <strong>Dashboard → Settings → Danger zone</strong>, type{" "}
+              <strong>DELETE</strong> and click{" "}
+              <strong>Delete my account and all data</strong>. This immediately and
+              permanently removes your account, every lead, every status event and every
+              delivery record. To stop data flowing without deleting anything, use{" "}
+              <strong>Dashboard → Settings → Meta connection → Disconnect Meta</strong>,
+              which revokes our Meta permissions and erases your stored Meta token. See
+              our <a href="/data-deletion">Data Deletion Instructions</a> for the full
+              steps.
+            </p>
           </Section>
 
           <Section title="7. Sub-processors">
@@ -154,6 +166,11 @@ function PrivacyPage() {
             <p>
               Under the Digital Personal Data Protection Act, 2023 (India), you have the
               right to access, correction, erasure, grievance redressal, and nomination.
+            </p>
+            <p>
+              Customers can exercise erasure directly in the app via{" "}
+              <strong>Dashboard → Settings → Danger zone → Delete my account and all
+              data</strong>.
             </p>
             <p>
               If you are a lead who wants your data removed, please contact the business
