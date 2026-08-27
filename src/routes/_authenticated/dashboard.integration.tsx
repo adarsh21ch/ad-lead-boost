@@ -84,20 +84,34 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+type PageRow = {
+  page_id: string;
+  page_name: string | null;
+  subscribe_status: string | null;
+  subscribe_error: string | null;
+  subscribed_at: string | null;
+};
+
 function IntegrationPage() {
   const queryClient = useQueryClient();
   const getAccountFn = useServerFn(getIntegrationAccount);
   const regenerateFn = useServerFn(regenerateWebhookKey);
   const listDeliveriesFn = useServerFn(listAccountDeliveries);
-  const savePageIdFn = useServerFn(saveMetaPageId);
+  const listPagesFn = useServerFn(listMetaPages);
+  const getMetaConnectUrlFn = useServerFn(getMetaConnectUrl);
 
   const [revealed, setRevealed] = useState(false);
   const [testCode, setTestCode] = useState("");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [pageId, setPageId] = useState<string | null>(null);
-  const [savingPageId, setSavingPageId] = useState(false);
+  const [pages, setPages] = useState<PageRow[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [scopeMissing, setScopeMissing] = useState(false);
+  const [scopeMessage, setScopeMessage] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["integration-account"],
@@ -110,6 +124,20 @@ function IntegrationPage() {
   const apiKey = (account?.webhook_api_key ?? "") as string;
   const currentPageId =
     ((account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id ?? "") as string;
+
+  const { data: storedPages } = useQuery({
+    queryKey: ["meta-pages"],
+    queryFn: () => listPagesFn(),
+    enabled: ready,
+  });
+
+  useEffect(() => {
+    if (!storedPages) return;
+    setPages((prev) => (prev.length ? prev : (storedPages as PageRow[])));
+    setSelectedPageId((prev) => prev || currentPageId || (storedPages[0]?.page_id ?? ""));
+  }, [storedPages, currentPageId]);
+
+  const selectedPage = pages.find((p) => p.page_id === selectedPageId) ?? null;
 
   const { data: deliveries } = useQuery({
     queryKey: ["integration-deliveries"],
@@ -132,24 +160,97 @@ Content-Type: application/json
   -H "Content-Type: application/json" \\
   -d '{"lead_reference":"1234567890123456","status":"qualified"}'`;
 
-
-  const savePage = async () => {
+  const reconnectMeta = async () => {
     if (!account) return;
-    setSavingPageId(true);
+    setReconnecting(true);
     try {
-      const res = await savePageIdFn({
-        data: { accountId: account.id, pageId: (pageId ?? currentPageId ?? "").trim() },
-      });
-      queryClient.setQueryData(["integration-account"], (prev: typeof account) =>
-        prev ? { ...prev, meta_page_id: res.meta_page_id } : prev,
-      );
-      toast.success(
-        res.meta_page_id ? "Page ID saved — inbound leads will be matched to this account" : "Page ID cleared",
-      );
+      const url = await getMetaConnectUrlFn({ data: { accountId: account.id } });
+      window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save the Page ID");
+      toast.error(err instanceof Error ? err.message : "Could not start Meta reconnect");
+      setReconnecting(false);
+    }
+  };
+
+  const loadPages = async () => {
+    setLoadingPages(true);
+    setScopeMissing(false);
+    setScopeMessage(null);
+    try {
+      const res = await fetch("/api/public/pages/refresh", { method: "POST" });
+      const body = (await res.json().catch(() => null)) as
+        | { ok: boolean; pages?: PageRow[]; error?: string; message?: string }
+        | null;
+      if (!body?.ok) {
+        if (body?.error === "scope_missing") {
+          setScopeMissing(true);
+          setScopeMessage(body.message ?? null);
+        } else {
+          toast.error(body?.message ?? body?.error ?? "Could not load your Pages");
+        }
+        return;
+      }
+      const list = body.pages ?? [];
+      setPages(list);
+      setSelectedPageId((prev) => prev || currentPageId || (list[0]?.page_id ?? ""));
+      toast.success(list.length ? `${list.length} Page(s) found` : "Meta returned no Pages");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load your Pages");
     } finally {
-      setSavingPageId(false);
+      setLoadingPages(false);
+    }
+  };
+
+  const connectPage = async () => {
+    if (!selectedPageId) return;
+    setConnecting(true);
+    try {
+      const res = await fetch("/api/public/pages/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ page_id: selectedPageId }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { ok: boolean; error?: string; message?: string; subscribed_at?: string }
+        | null;
+      if (body?.ok) {
+        setPages((prev) =>
+          prev.map((p) =>
+            p.page_id === selectedPageId
+              ? {
+                  ...p,
+                  subscribe_status: "subscribed",
+                  subscribe_error: null,
+                  subscribed_at: body.subscribed_at ?? new Date().toISOString(),
+                }
+              : p,
+          ),
+        );
+        toast.success("Page connected — leads will arrive automatically");
+      } else {
+        if (body?.error === "scope_missing") {
+          setScopeMissing(true);
+          setScopeMessage(body.message ?? null);
+        }
+        setPages((prev) =>
+          prev.map((p) =>
+            p.page_id === selectedPageId
+              ? {
+                  ...p,
+                  subscribe_status: "failed",
+                  subscribe_error: body?.message ?? body?.error ?? "Meta rejected the request",
+                }
+              : p,
+          ),
+        );
+        toast.error(body?.message ?? "Could not connect this Page");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not connect this Page");
+    } finally {
+      setConnecting(false);
     }
   };
 
