@@ -113,8 +113,6 @@ function IntegrationPage() {
   const tokenHealth = getTokenHealth(account ?? {});
   const tokenExpired = tokenHealth.state === "expired";
   const apiKey = (account?.webhook_api_key ?? "") as string;
-  const currentPageId =
-    ((account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id ?? "") as string;
 
   const { data: storedPages } = useQuery({
     queryKey: ["meta-pages"],
@@ -122,13 +120,6 @@ function IntegrationPage() {
     enabled: ready,
   });
 
-  useEffect(() => {
-    if (!storedPages) return;
-    setPages((prev) => (prev.length ? prev : (storedPages as PageRow[])));
-    setSelectedPageId((prev) => prev || currentPageId || (storedPages[0]?.page_id ?? ""));
-  }, [storedPages, currentPageId]);
-
-  const selectedPage = pages.find((p) => p.page_id === selectedPageId) ?? null;
 
   const { data: deliveries } = useQuery({
     queryKey: ["integration-deliveries"],
