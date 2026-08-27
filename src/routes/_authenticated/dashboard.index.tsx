@@ -177,6 +177,28 @@ function DashboardPage() {
                 <span className="text-muted-foreground">Dataset</span>
                 <span className="font-mono">{account.meta_dataset_id ?? "—"}</span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Page</span>
+                {pageStatus === "subscribed" ? (
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    Connected ✓
+                  </span>
+                ) : pageStatus === "failed" ? (
+                  <Link
+                    to="/dashboard/integration"
+                    className="font-medium text-destructive underline"
+                  >
+                    Connection failed — fix it
+                  </Link>
+                ) : (
+                  <Link
+                    to="/dashboard/integration"
+                    className="font-medium text-amber-600 underline dark:text-amber-400"
+                  >
+                    Not connected
+                  </Link>
+                )}
+              </div>
               {account.status !== "active" && (
                 <Button onClick={connectMeta} disabled={busy} className="mt-2">
                   {busy ? "Redirecting…" : "Connect Meta"}
