@@ -22,6 +22,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardIntegrationRouteImport } from './routes/_authenticated/dashboard.integration'
 import { Route as AuthenticatedDashboardSelectAdAccountRouteImport } from './routes/_authenticated/dashboard.select-ad-account'
+import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard.settings'
 import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test-event'
 import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account/delete'
 import { Route as ApiPublicAccountDisconnectMetaRouteImport } from './routes/api/public/account/disconnect-meta'
@@ -100,6 +101,12 @@ const AuthenticatedDashboardSelectAdAccountRoute =
     path: '/select-ad-account',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedDashboardSettingsRoute =
+  AuthenticatedDashboardSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const ApiPublicTestEventRoute = ApiPublicTestEventRouteImport.update({
   id: '/api/public/test-event',
   path: '/api/public/test-event',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
@@ -217,6 +226,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
+  '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/public/test-event': typeof ApiPublicTestEventRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/dashboard/settings'
     | '/api/public/test-event'
     | '/dashboard/'
     | '/api/public/account/delete'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
+    | '/dashboard/settings'
     | '/api/public/test-event'
     | '/dashboard'
     | '/api/public/account/delete'
@@ -291,6 +303,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/_authenticated/dashboard/integration'
     | '/_authenticated/dashboard/select-ad-account'
+    | '/_authenticated/dashboard/settings'
     | '/api/public/test-event'
     | '/_authenticated/dashboard/'
     | '/api/public/account/delete'
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardSelectAdAccountRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/dashboard/settings': {
+      id: '/_authenticated/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/api/public/test-event': {
       id: '/api/public/test-event'
       path: '/api/public/test-event'
@@ -492,6 +512,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardIntegrationRoute: typeof AuthenticatedDashboardIntegrationRoute
   AuthenticatedDashboardSelectAdAccountRoute: typeof AuthenticatedDashboardSelectAdAccountRoute
+  AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
 }
 
@@ -501,6 +522,7 @@ const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
       AuthenticatedDashboardIntegrationRoute,
     AuthenticatedDashboardSelectAdAccountRoute:
       AuthenticatedDashboardSelectAdAccountRoute,
+    AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
     AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   }
 
