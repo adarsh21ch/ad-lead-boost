@@ -227,37 +227,96 @@ Content-Type: application/json
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Inbound leads — your Facebook Page ID</CardTitle>
+                <CardTitle className="text-base">Facebook Page</CardTitle>
                 <CardDescription>
-                  Meta's Lead Ads webhook is app-level, so AdsPro matches each incoming lead to
-                  your account by Page ID. Without it, your leads are dropped.
+                  AdsPro subscribes your Page to Meta's <code>leadgen</code> webhook for you — pick
+                  the Page your lead ads run from.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={pageId ?? currentPageId}
-                    onChange={(e) => setPageId(e.target.value)}
-                    placeholder="e.g. 102938475610293"
-                    className="max-w-xs font-mono text-xs"
-                  />
-                  <Button onClick={savePage} disabled={savingPageId}>
-                    {savingPageId ? "Saving…" : "Save Page ID"}
-                  </Button>
-                  {currentPageId ? <Badge variant="secondary">Mapped</Badge> : null}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Find it in Facebook Page settings → About → Page ID. Then subscribe your Page to
-                  the <code>leadgen</code> field in your Meta app's Webhooks settings.
-                </p>
+                {scopeMissing ? (
+                  <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium text-amber-700 dark:text-amber-400">
+                      Your Meta connection was made before Page support was added. Reconnect once to
+                      enable automatic Page connection.
+                    </p>
+                    {scopeMessage ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{scopeMessage}</p>
+                    ) : null}
+                    <Button size="sm" className="mt-2" onClick={reconnectMeta} disabled={reconnecting}>
+                      {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" onClick={loadPages} disabled={loadingPages}>
+                        {loadingPages ? "Loading…" : "Load my Pages"}
+                      </Button>
+                      {pages.length > 0 && (
+                        <>
+                          <select
+                            value={selectedPageId}
+                            onChange={(e) => setSelectedPageId(e.target.value)}
+                            className="h-9 max-w-xs rounded-md border bg-background px-2 text-sm"
+                          >
+                            {pages.map((p) => (
+                              <option key={p.page_id} value={p.page_id}>
+                                {p.page_name ?? "Unnamed Page"} ({p.page_id})
+                              </option>
+                            ))}
+                          </select>
+                          <Button onClick={connectPage} disabled={connecting || !selectedPageId}>
+                            {connecting ? "Connecting…" : "Connect"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {selectedPage?.subscribe_status === "subscribed" ? (
+                      <div className="rounded-md border border-emerald-500/50 bg-emerald-500/10 p-3 text-sm">
+                        <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                          Connected — leads from this Page will arrive automatically
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Subscribed{" "}
+                          {selectedPage.subscribed_at
+                            ? new Date(selectedPage.subscribed_at).toLocaleString()
+                            : "—"}
+                        </p>
+                      </div>
+                    ) : selectedPage?.subscribe_status === "failed" ? (
+                      <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                        <p className="font-medium text-destructive">
+                          Page connection failed — no leads are arriving from this Page.
+                        </p>
+                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-muted px-2 py-1 text-xs">
+                          {selectedPage.subscribe_error || "Meta returned no message."}
+                        </pre>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={connectPage}
+                          disabled={connecting}
+                        >
+                          {connecting ? "Retrying…" : "Retry"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Choose the Page your lead ads run from.
+                      </p>
+                    )}
+                  </>
+                )}
+
                 <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">
                     Match leads by <code>leadgen_id</code> — not phone or email
                   </p>
                   <p className="mt-1">
-                    AdsPro does not currently hold Meta's <code>leads_retrieval</code> permission,
-                    so the webhook delivers identifiers only: no name, email or phone. Leads are
-                    therefore stored without hashed PII, and status updates must send the Meta{" "}
+                    Leads arrive as identifiers only, so status updates must send the Meta{" "}
                     <code>leadgen_id</code> as <code>lead_reference</code>. Sending a phone number
                     or email will return <code>404</code>. Meta's Conversions API accepts{" "}
                     <code>lead_id</code> as the preferred match key for lead-ads conversions, so
