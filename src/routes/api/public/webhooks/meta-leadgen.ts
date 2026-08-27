@@ -103,24 +103,34 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
               continue;
             }
 
-            // Idempotent: unique index on (account_id, meta_leadgen_id) makes a
-            // re-delivery a no-op instead of a duplicate row.
-            const { error } = await supabaseAdmin.from("leads").upsert(
-              {
-                account_id: accountId,
-                meta_leadgen_id: leadgenId,
-                ad_id: value.ad_id ?? value.adgroup_id ?? null,
-                campaign_id: value.campaign_id ?? null,
-                form_id: value.form_id ?? null,
-                is_test: false,
-                // PII stays null until leads_retrieval is granted.
-                phone_hash: null,
-                email_hash: null,
-                raw_field_data: { webhook: value },
-              },
-              { onConflict: "account_id,meta_leadgen_id", ignoreDuplicates: true },
-            );
-            if (error) {
+            // Idempotent: skip if we already stored this leadgen_id, and treat a
+            // unique-violation (concurrent re-delivery) as a no-op too.
+            const { data: existing } = await supabaseAdmin
+              .from("leads")
+              .select("id")
+              .eq("account_id", accountId)
+              .eq("meta_leadgen_id", leadgenId)
+              .maybeSingle();
+            if (existing) {
+              console.log(`[meta-leadgen] duplicate delivery ignored leadgen_id=${leadgenId}`);
+              continue;
+            }
+
+            const { error } = await supabaseAdmin.from("leads").insert({
+              account_id: accountId,
+              meta_leadgen_id: leadgenId,
+              ad_id: value.ad_id ?? value.adgroup_id ?? null,
+              campaign_id: value.campaign_id ?? null,
+              form_id: value.form_id ?? null,
+              is_test: false,
+              // PII stays null until leads_retrieval is granted.
+              phone_hash: null,
+              email_hash: null,
+              raw_field_data: { webhook: value },
+            });
+            if (error && error.code === "23505") {
+              console.log(`[meta-leadgen] duplicate delivery ignored leadgen_id=${leadgenId}`);
+            } else if (error) {
               console.error(`[meta-leadgen] insert failed for leadgen_id=${leadgenId}:`, error);
             } else {
               console.log(
