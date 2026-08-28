@@ -129,11 +129,23 @@ export const Route = createFileRoute("/api/public/pages/connect")({
           (metaResponse as { success?: boolean } | null)?.success === true;
 
         if (!success) {
+          const metaErrorBody = (metaResponse as { error?: Record<string, unknown> } | null)?.error;
           const metaMessage =
-            (metaResponse as { error?: { message?: string } } | null)?.error?.message ??
-            "Meta rejected the Page subscription.";
+            (typeof metaErrorBody?.["message"] === "string"
+              ? (metaErrorBody["message"] as string)
+              : undefined) ?? "Meta rejected the Page subscription.";
           const needsScope = /#200|permission/i.test(metaMessage);
+          await reportMetaError(account.id, "pages", {
+            code: typeof metaErrorBody?.["code"] === "number" ? (metaErrorBody["code"] as number) : null,
+            errorSubcode:
+              typeof metaErrorBody?.["error_subcode"] === "number"
+                ? (metaErrorBody["error_subcode"] as number)
+                : null,
+            httpStatus,
+            message: metaMessage,
+          });
           await recordFailure(metaMessage);
+
           return json(
             {
               ok: false,
