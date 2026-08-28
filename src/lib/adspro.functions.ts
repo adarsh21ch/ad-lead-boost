@@ -207,7 +207,20 @@ export const listLeads = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    const leadIds = (leads ?? []).map((l) => l.id);
+    const rows = (leads ?? []) as unknown as Array<{
+      id: string;
+      created_at: string;
+      meta_leadgen_id: string | null;
+      campaign_id: string | null;
+      campaign_name?: string | null;
+      ad_id: string | null;
+      ad_name?: string | null;
+      form_id: string | null;
+      full_name?: string | null;
+      enrichment_status?: string | null;
+      enrichment_error?: string | null;
+    }>;
+    const leadIds = rows.map((l) => l.id);
     let events: Array<{ lead_id: string; status: string; created_at: string }> = [];
     if (leadIds.length) {
       const { data: ev } = await context.supabase
