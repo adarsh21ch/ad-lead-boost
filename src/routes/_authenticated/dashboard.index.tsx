@@ -219,35 +219,17 @@ function DashboardPage() {
               <CardDescription>Your connected Meta workspace</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {tokenHealth.state === "expired" ? (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                  <p className="font-medium text-destructive">
-                    Your Meta connection has expired — lead-sync is stopped.
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Reconnect Meta to resume sending lead outcomes to your dataset.
-                  </p>
-                  <Button onClick={connectMeta} disabled={busy} size="sm" className="mt-2">
-                    {busy ? "Redirecting…" : "Reconnect Meta"}
-                  </Button>
-                </div>
-              ) : tokenHealth.state === "expiring" ? (
-                <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
-                  <p className="font-medium text-amber-700 dark:text-amber-400">
-                    Your Meta connection expires in {tokenHealth.daysRemaining} day
-                    {tokenHealth.daysRemaining === 1 ? "" : "s"}. Reconnect now to avoid losing
-                    lead-sync.
-                  </p>
-                  <Button
-                    onClick={connectMeta}
-                    disabled={busy}
-                    size="sm"
-                    variant="outline"
-                    className="mt-2"
-                  >
-                    {busy ? "Redirecting…" : "Reconnect Meta"}
-                  </Button>
-                </div>
+              {tokenStatus === "invalid" ? (
+                <p className="text-xs text-destructive">
+                  Connection broken{brokenSince ? ` ${brokenSince}` : ""} — reconnect Meta above.
+                </p>
+              ) : lastOkPhrase ? (
+                <p className="text-xs text-muted-foreground">
+                  Connection verified {lastOkPhrase}
+                  {tokenHealth.expiresAt
+                    ? ` · token valid until ${tokenHealth.expiresAt.toLocaleDateString()}`
+                    : ""}
+                </p>
               ) : tokenHealth.state === "healthy" ? (
                 <p className="text-xs text-muted-foreground">
                   Token valid until {tokenHealth.expiresAt?.toLocaleDateString()} (
@@ -255,9 +237,10 @@ function DashboardPage() {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Token expiry unknown — reconnect Meta if lead-sync stops.
+                  Connection not verified yet — reconnect Meta if lead-sync stops.
                 </p>
               )}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ad account</span>
                 <span className="font-mono">{account.meta_ad_account_id ?? "—"}</span>
