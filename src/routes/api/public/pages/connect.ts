@@ -54,6 +54,7 @@ export const Route = createFileRoute("/api/public/pages/connect")({
         const { getOwnedAccountToken, graphUrl, graphGet, getMetaGraphErrorDetails } = await import(
           "@/lib/meta.server"
         );
+        const { reportTokenHealth, reportMetaError } = await import("@/lib/token-health.server");
 
         const recordFailure = async (message: string) => {
           await supabaseAdmin
@@ -78,15 +79,18 @@ export const Route = createFileRoute("/api/public/pages/connect")({
             "me/accounts",
           );
           pageToken = ((res.data ?? []) as MetaPage[]).find((p) => p.id === pageId)?.access_token;
+          await reportTokenHealth(account.id, "ok", "pages");
         } catch (error) {
           const details = getMetaGraphErrorDetails(error);
           console.error("[pages:connect] token lookup failed", details);
+          await reportMetaError(account.id, "pages", details);
           await recordFailure(details.message);
           return json(
             { ok: false, error: "scope_missing", message: details.message },
             200,
           );
         }
+
 
         if (!pageToken) {
           const message =
