@@ -130,9 +130,16 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
             return fail("token_extend_failed", metaErrorDetail(longRes.status, longJson));
           }
 
-          const expiresAt = longJson.expires_in
-            ? new Date(Date.now() + Number(longJson.expires_in) * 1000).toISOString()
-            : null;
+          // Meta returns expires_in only for tokens that actually expire. If it
+          // is absent we store NULL ("unknown") rather than inventing a date.
+          const expiresIn = longJson.expires_in;
+          const expiresAt =
+            expiresIn != null && Number.isFinite(Number(expiresIn)) && Number(expiresIn) > 0
+              ? new Date(Date.now() + Number(expiresIn) * 1000).toISOString()
+              : null;
+          console.log(
+            `[meta-oauth] account=${accountId} expires_in=${expiresIn ?? "absent"} stored_expiry=${expiresAt ?? "NULL"}`,
+          );
 
           let encrypted: string;
           try {
@@ -155,7 +162,12 @@ export const Route = createFileRoute("/api/public/auth/meta/callback")({
             return fail("db_write_failed", error ?? { reason: "account update returned no row", accountId });
           }
 
+          // A fresh token clears any red banner immediately.
+          const { reportTokenHealth } = await import("@/lib/token-health.server");
+          await reportTokenHealth(accountId, "reconnected", "oauth");
+
           return redirect(`/dashboard/select-ad-account?account=${encodeURIComponent(accountId)}`);
+
         } catch (err) {
           return fail("unknown", err instanceof Error ? err.message : err);
         }
