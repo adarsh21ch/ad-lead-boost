@@ -116,12 +116,32 @@ function LeadsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-5xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-          <p className="text-sm text-muted-foreground">
-            Set lead outcomes manually — useful if you don't use a CRM.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
+            <p className="text-sm text-muted-foreground">
+              Set lead outcomes manually — useful if you don't use a CRM.
+            </p>
+          </div>
+          {enrichmentEnabled && hasEnrichable ? (
+            needsReconnect ? (
+              <div className="max-w-xs text-right">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/dashboard/integration">Reconnect Meta</Link>
+                </Button>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Your Meta connection was made before lead names were supported. Reconnect once to
+                  enable them.
+                </p>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={fetchMissingNames} disabled={backfilling}>
+                {backfilling ? "Fetching…" : "Fetch missing names"}
+              </Button>
+            )
+          ) : null}
         </div>
+
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
