@@ -36,6 +36,7 @@ export const Route = createFileRoute("/api/public/pages/refresh")({
         const { getOwnedAccountToken, graphUrl, graphGet, getMetaGraphErrorDetails } = await import(
           "@/lib/meta.server"
         );
+        const { reportTokenHealth, reportMetaError } = await import("@/lib/token-health.server");
 
         let pages: MetaPage[];
         try {
@@ -46,9 +47,11 @@ export const Route = createFileRoute("/api/public/pages/refresh")({
             "me/accounts",
           );
           pages = ((res.data ?? []) as MetaPage[]).filter((p) => Boolean(p?.id));
+          await reportTokenHealth(account.id, "ok", "pages");
         } catch (error) {
           const details = getMetaGraphErrorDetails(error);
           console.error("[pages:refresh] graph failure", details);
+          await reportMetaError(account.id, "pages", details);
           const missingScope =
             details.code === 200 ||
             details.code === 190 ||
@@ -63,6 +66,7 @@ export const Route = createFileRoute("/api/public/pages/refresh")({
             200,
           );
         }
+
 
         // Upsert without clobbering an existing subscribe_status/subscribed_at.
         const { data: existing } = await supabaseAdmin

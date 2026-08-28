@@ -54,6 +54,7 @@ export const Route = createFileRoute("/api/public/pages/connect")({
         const { getOwnedAccountToken, graphUrl, graphGet, getMetaGraphErrorDetails } = await import(
           "@/lib/meta.server"
         );
+        const { reportTokenHealth, reportMetaError } = await import("@/lib/token-health.server");
 
         const recordFailure = async (message: string) => {
           await supabaseAdmin
@@ -78,15 +79,18 @@ export const Route = createFileRoute("/api/public/pages/connect")({
             "me/accounts",
           );
           pageToken = ((res.data ?? []) as MetaPage[]).find((p) => p.id === pageId)?.access_token;
+          await reportTokenHealth(account.id, "ok", "pages");
         } catch (error) {
           const details = getMetaGraphErrorDetails(error);
           console.error("[pages:connect] token lookup failed", details);
+          await reportMetaError(account.id, "pages", details);
           await recordFailure(details.message);
           return json(
             { ok: false, error: "scope_missing", message: details.message },
             200,
           );
         }
+
 
         if (!pageToken) {
           const message =
@@ -125,11 +129,23 @@ export const Route = createFileRoute("/api/public/pages/connect")({
           (metaResponse as { success?: boolean } | null)?.success === true;
 
         if (!success) {
+          const metaErrorBody = (metaResponse as { error?: Record<string, unknown> } | null)?.error;
           const metaMessage =
-            (metaResponse as { error?: { message?: string } } | null)?.error?.message ??
-            "Meta rejected the Page subscription.";
+            (typeof metaErrorBody?.["message"] === "string"
+              ? (metaErrorBody["message"] as string)
+              : undefined) ?? "Meta rejected the Page subscription.";
           const needsScope = /#200|permission/i.test(metaMessage);
+          await reportMetaError(account.id, "pages", {
+            code: typeof metaErrorBody?.["code"] === "number" ? (metaErrorBody["code"] as number) : null,
+            errorSubcode:
+              typeof metaErrorBody?.["error_subcode"] === "number"
+                ? (metaErrorBody["error_subcode"] as number)
+                : null,
+            httpStatus,
+            message: metaMessage,
+          });
           await recordFailure(metaMessage);
+
           return json(
             {
               ok: false,
@@ -145,7 +161,9 @@ export const Route = createFileRoute("/api/public/pages/connect")({
           );
         }
 
+        await reportTokenHealth(account.id, "ok", "pages");
         const nowIso = new Date().toISOString();
+
         await supabaseAdmin
           .from("meta_pages")
           .update({ subscribe_status: "subscribed", subscribed_at: nowIso, subscribe_error: null })

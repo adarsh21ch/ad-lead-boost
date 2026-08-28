@@ -59,6 +59,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
   })
   .handler(async ({ data, context }) => {
     const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
+    const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
@@ -67,6 +68,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
         token,
         "me/adaccounts",
       );
+      await reportTokenHealth(data.accountId, "ok", "adaccounts");
       return {
         ok: true as const,
         data: (json.data ?? []) as Array<{
@@ -80,6 +82,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
       console.error("[select-ad-account] ad-account discovery failed", details);
+      await reportMetaError(data.accountId, "adaccounts", details);
       if (details.code === 190) {
         const { error: statusError } = await context.supabase
           .from("accounts")
@@ -90,6 +93,7 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
       }
       return { ok: false as const, error: details };
     }
+
   });
 
 export const listMetaPixels = createServerFn({ method: "GET" })
@@ -100,6 +104,7 @@ export const listMetaPixels = createServerFn({ method: "GET" })
   })
   .handler(async ({ data, context }) => {
     const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
+    const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
@@ -125,8 +130,9 @@ export const listMetaPixels = createServerFn({ method: "GET" })
           if (pixel.id) pixels.set(pixel.id, { id: pixel.id, name: pixel.name ?? `Dataset ${pixel.id}` });
         }
       }
-      const tokenError = errors.find((error) => error.code === 190);
+      const tokenError = errors.find((error) => error.code === 190 || error.code === 102);
       if (tokenError) {
+        await reportMetaError(data.accountId, "adaccounts", tokenError);
         const { error: statusError } = await context.supabase
           .from("accounts")
           .update({ status: "token_expired" })
@@ -136,6 +142,7 @@ export const listMetaPixels = createServerFn({ method: "GET" })
         return { ok: false as const, error: tokenError };
       }
       if (pixels.size === 0 && errors.length > 0) {
+        await reportMetaError(data.accountId, "adaccounts", errors[0]);
         return {
           ok: false as const,
           error: errors[0] ?? {
@@ -148,12 +155,16 @@ export const listMetaPixels = createServerFn({ method: "GET" })
           },
         };
       }
+      // At least one Graph call came back normally.
+      await reportTokenHealth(data.accountId, "ok", "adaccounts");
       return { ok: true as const, data: [...pixels.values()], warnings: errors, rawResponses };
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
       console.error("[select-ad-account] dataset discovery failed", details);
+      await reportMetaError(data.accountId, "adaccounts", details);
       return { ok: false as const, error: details };
     }
+
   });
 
 export const saveAdAccountSelection = createServerFn({ method: "POST" })

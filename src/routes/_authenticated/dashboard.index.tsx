@@ -45,12 +45,32 @@ function getMetaConnectErrorMessage(reason: string) {
   return `Connection failed (code: ${reason}).`;
 }
 
+/** "2 days ago" / "3 hours ago" — no date math for the reader to do. */
+function relativeTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return plural(Math.floor(seconds / 60), "minute");
+  if (seconds < 86400) return plural(Math.floor(seconds / 3600), "hour");
+  if (seconds < 2592000) return plural(Math.floor(seconds / 86400), "day");
+  return plural(Math.floor(seconds / 2592000), "month");
+}
+
+
+function plural(n: number, unit: string) {
+  return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { meta_connect?: string; reason?: string };
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [expiringDismissed, setExpiringDismissed] = useState(false);
+
 
   const getMyAccountFn = useServerFn(getMyAccount);
   const createAccountFn = useServerFn(createAccount);
@@ -69,9 +89,22 @@ function DashboardPage() {
   });
 
   const tokenHealth = getTokenHealth(account ?? {});
+  const tokenState = account as
+    | {
+        token_status?: string | null;
+        token_last_ok_at?: string | null;
+        token_last_error?: string | null;
+        token_invalid_since?: string | null;
+      }
+    | null
+    | undefined;
+  const tokenStatus = tokenState?.token_status ?? "unknown";
+  const lastOkPhrase = relativeTime(tokenState?.token_last_ok_at);
+  const brokenSince = relativeTime(tokenState?.token_invalid_since);
   const pageStatus =
     ((account as { page_subscribe_status?: string | null } | null | undefined)
       ?.page_subscribe_status ?? null) as string | null;
+
 
   const connectMeta = async () => {
     setBusy(true);
@@ -99,7 +132,60 @@ function DashboardPage() {
           </p>
         </div>
 
+        {account && tokenStatus === "invalid" && (
+          <div
+            role="alert"
+            data-testid="token-invalid-banner"
+            className="rounded-md border border-destructive bg-destructive/10 p-4"
+          >
+            <p className="font-semibold text-destructive">Lead syncing has stopped.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your Meta connection is no longer valid, so lead outcomes are not reaching Meta.
+              Reconnect to resume.
+            </p>
+            {brokenSince && (
+              <p className="mt-1 text-sm text-muted-foreground">Broken since {brokenSince}.</p>
+            )}
+            <Button onClick={connectMeta} disabled={busy} size="sm" className="mt-3">
+              {busy ? "Redirecting…" : "Reconnect Meta"}
+            </Button>
+            {tokenState?.token_last_error && (
+              <p className="mt-3 font-mono text-xs break-words text-muted-foreground">
+                {tokenState.token_last_error}
+              </p>
+            )}
+          </div>
+        )}
+
+        {account && tokenStatus === "expiring_soon" && !expiringDismissed && (
+          <div
+            role="status"
+            className="rounded-md border border-amber-500/60 bg-amber-500/10 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                Your Meta connection expires on{" "}
+                {tokenHealth.expiresAt?.toLocaleDateString() ?? "an unknown date"}. Reconnect to
+                avoid interruption.
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setExpiringDismissed(true)}>
+                Dismiss
+              </Button>
+            </div>
+            <Button
+              onClick={connectMeta}
+              disabled={busy}
+              size="sm"
+              variant="outline"
+              className="mt-3"
+            >
+              {busy ? "Redirecting…" : "Reconnect Meta"}
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
+
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !account ? (
           <Card>
@@ -133,35 +219,17 @@ function DashboardPage() {
               <CardDescription>Your connected Meta workspace</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {tokenHealth.state === "expired" ? (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                  <p className="font-medium text-destructive">
-                    Your Meta connection has expired — lead-sync is stopped.
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Reconnect Meta to resume sending lead outcomes to your dataset.
-                  </p>
-                  <Button onClick={connectMeta} disabled={busy} size="sm" className="mt-2">
-                    {busy ? "Redirecting…" : "Reconnect Meta"}
-                  </Button>
-                </div>
-              ) : tokenHealth.state === "expiring" ? (
-                <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
-                  <p className="font-medium text-amber-700 dark:text-amber-400">
-                    Your Meta connection expires in {tokenHealth.daysRemaining} day
-                    {tokenHealth.daysRemaining === 1 ? "" : "s"}. Reconnect now to avoid losing
-                    lead-sync.
-                  </p>
-                  <Button
-                    onClick={connectMeta}
-                    disabled={busy}
-                    size="sm"
-                    variant="outline"
-                    className="mt-2"
-                  >
-                    {busy ? "Redirecting…" : "Reconnect Meta"}
-                  </Button>
-                </div>
+              {tokenStatus === "invalid" ? (
+                <p className="text-xs text-destructive">
+                  Connection broken{brokenSince ? ` ${brokenSince}` : ""} — reconnect Meta above.
+                </p>
+              ) : lastOkPhrase ? (
+                <p className="text-xs text-muted-foreground">
+                  Connection verified {lastOkPhrase}
+                  {tokenHealth.expiresAt
+                    ? ` · token valid until ${tokenHealth.expiresAt.toLocaleDateString()}`
+                    : ""}
+                </p>
               ) : tokenHealth.state === "healthy" ? (
                 <p className="text-xs text-muted-foreground">
                   Token valid until {tokenHealth.expiresAt?.toLocaleDateString()} (
@@ -169,9 +237,10 @@ function DashboardPage() {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Token expiry unknown — reconnect Meta if lead-sync stops.
+                  Connection not verified yet — reconnect Meta if lead-sync stops.
                 </p>
               )}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ad account</span>
                 <span className="font-mono">{account.meta_ad_account_id ?? "—"}</span>
