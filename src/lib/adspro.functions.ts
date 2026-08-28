@@ -196,9 +196,14 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { isLeadEnrichmentEnabled } = await import("@/lib/lead-enrichment.server");
+    const enrichmentEnabled = isLeadEnrichmentEnabled();
+    const columns = enrichmentEnabled
+      ? "id, created_at, meta_leadgen_id, campaign_id, campaign_name, ad_id, ad_name, form_id, full_name, enrichment_status, enrichment_error"
+      : "id, created_at, meta_leadgen_id, campaign_id, ad_id, form_id";
     const { data: leads, error } = await context.supabase
       .from("leads")
-      .select("id, created_at, meta_leadgen_id, campaign_id, ad_id, form_id")
+      .select(columns)
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
