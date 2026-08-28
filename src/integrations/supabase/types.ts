@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -110,15 +110,24 @@ export type Database = {
         Row: {
           account_id: string
           ad_id: string | null
+          ad_name: string | null
+          adset_id: string | null
+          adset_name: string | null
           campaign_id: string | null
+          campaign_name: string | null
           client_ip: unknown
           client_user_agent: string | null
           created_at: string
           email_hash: string | null
+          enriched_at: string | null
+          enrichment_attempts: number
+          enrichment_error: string | null
+          enrichment_status: string
           event_id: string
           fbc: string | null
           fbp: string | null
           form_id: string | null
+          full_name: string | null
           id: string
           is_test: boolean
           meta_leadgen_id: string | null
@@ -128,15 +137,24 @@ export type Database = {
         Insert: {
           account_id: string
           ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
           campaign_id?: string | null
+          campaign_name?: string | null
           client_ip?: unknown
           client_user_agent?: string | null
           created_at?: string
           email_hash?: string | null
+          enriched_at?: string | null
+          enrichment_attempts?: number
+          enrichment_error?: string | null
+          enrichment_status?: string
           event_id?: string
           fbc?: string | null
           fbp?: string | null
           form_id?: string | null
+          full_name?: string | null
           id?: string
           is_test?: boolean
           meta_leadgen_id?: string | null
@@ -146,15 +164,24 @@ export type Database = {
         Update: {
           account_id?: string
           ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
           campaign_id?: string | null
+          campaign_name?: string | null
           client_ip?: unknown
           client_user_agent?: string | null
           created_at?: string
           email_hash?: string | null
+          enriched_at?: string | null
+          enrichment_attempts?: number
+          enrichment_error?: string | null
+          enrichment_status?: string
           event_id?: string
           fbc?: string | null
           fbp?: string | null
           form_id?: string | null
+          full_name?: string | null
           id?: string
           is_test?: boolean
           meta_leadgen_id?: string | null
@@ -211,6 +238,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      retention_runs: {
+        Row: {
+          cutoff: string
+          id: string
+          leads_deleted: number
+          note: string | null
+          ran_at: string
+        }
+        Insert: {
+          cutoff: string
+          id?: string
+          leads_deleted: number
+          note?: string | null
+          ran_at?: string
+        }
+        Update: {
+          cutoff?: string
+          id?: string
+          leads_deleted?: number
+          note?: string | null
+          ran_at?: string
+        }
+        Relationships: []
       }
       status_events: {
         Row: {
@@ -287,6 +338,7 @@ export type Database = {
         Returns: string
       }
       run_capi_dispatcher: { Args: never; Returns: undefined }
+      run_retention_purge: { Args: { p_days?: number }; Returns: number }
     }
     Enums: {
       [_ in never]: never
