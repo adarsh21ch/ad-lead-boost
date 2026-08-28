@@ -161,7 +161,9 @@ export const Route = createFileRoute("/api/public/pages/connect")({
           );
         }
 
+        await reportTokenHealth(account.id, "ok", "pages");
         const nowIso = new Date().toISOString();
+
         await supabaseAdmin
           .from("meta_pages")
           .update({ subscribe_status: "subscribed", subscribed_at: nowIso, subscribe_error: null })
