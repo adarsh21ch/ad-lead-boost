@@ -51,19 +51,13 @@ function relativeTime(iso: string | null | undefined): string | null {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  const units: Array<[number, string]> = [
-    [60, "second"],
-    [3600, "minute"],
-    [86400, "hour"],
-    [2592000, "day"],
-  ];
   if (seconds < 60) return "just now";
   if (seconds < 3600) return plural(Math.floor(seconds / 60), "minute");
   if (seconds < 86400) return plural(Math.floor(seconds / 3600), "hour");
   if (seconds < 2592000) return plural(Math.floor(seconds / 86400), "day");
-  void units;
   return plural(Math.floor(seconds / 2592000), "month");
 }
+
 
 function plural(n: number, unit: string) {
   return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
