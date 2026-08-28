@@ -167,10 +167,22 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
     attempt = await graphGetLead(leadgenId, token, MINIMAL_FIELDS);
   }
 
+  const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
+
   if (!attempt.ok) {
     const message = attempt.json?.error?.message ?? attempt.bodyText;
     const scopeMissing = attempt.code === 200 || /leads_retrieval/i.test(String(message));
     const rateLimited = attempt.code != null && RATE_LIMIT_CODES.includes(attempt.code);
+    // Only a real token error flips token_status; scope/rate-limit report nothing.
+    await reportMetaError(lead.account_id, "enrichment", {
+      code: attempt.code,
+      errorSubcode:
+        typeof attempt.json?.error?.error_subcode === "number"
+          ? attempt.json.error.error_subcode
+          : null,
+      httpStatus: attempt.httpStatus,
+      message: typeof message === "string" ? message : String(message),
+    });
     await admin
       .from("leads")
       .update({
@@ -189,6 +201,9 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
       message: String(message),
     };
   }
+
+  await reportTokenHealth(lead.account_id, "ok", "enrichment");
+
 
   const payload = attempt.json ?? {};
   const fieldData: FieldDatum[] = Array.isArray(payload.field_data) ? payload.field_data : [];
