@@ -76,6 +76,8 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
 
         if (!changes.length) return new Response("ok", { status: 200 });
 
+        const newLeadIds: string[] = [];
+
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: accounts } = await supabaseAdmin
