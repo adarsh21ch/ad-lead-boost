@@ -232,7 +232,10 @@ export const listLeads = createServerFn({ method: "GET" })
     }
     const latest = new Map<string, string>();
     for (const e of events) if (!latest.has(e.lead_id)) latest.set(e.lead_id, e.status);
-    return (leads ?? []).map((l) => ({ ...l, latest_status: latest.get(l.id) ?? null }));
+    return {
+      enrichmentEnabled,
+      leads: rows.map((l) => ({ ...l, latest_status: latest.get(l.id) ?? null })),
+    };
   });
 
 export const setLeadStatus = createServerFn({ method: "POST" })
