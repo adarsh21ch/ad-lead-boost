@@ -179,9 +179,10 @@ function LeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Created</TableHead>
-                  <TableHead>Leadgen ID</TableHead>
+                  {enrichmentEnabled ? <TableHead>Name</TableHead> : null}
                   <TableHead>Campaign</TableHead>
                   <TableHead>Ad</TableHead>
+                  <TableHead>Leadgen ID</TableHead>
                   <TableHead>Current status</TableHead>
                   <TableHead>Set status</TableHead>
                 </TableRow>
@@ -192,14 +193,28 @@ function LeadsPage() {
                     <TableCell className="whitespace-nowrap text-sm">
                       {new Date(lead.created_at).toLocaleString()}
                     </TableCell>
-                    <TableCell className="max-w-[160px] truncate font-mono text-xs">
+                    {enrichmentEnabled ? (
+                      <TableCell className="max-w-[180px] truncate text-sm">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span>{lead.full_name || "—"}</span>
+                          {lead.enrichment_status === "failed" ? (
+                            <span
+                              title={lead.enrichment_error ?? "Enrichment failed"}
+                              aria-label={lead.enrichment_error ?? "Enrichment failed"}
+                              className="inline-block size-2 shrink-0 rounded-full bg-amber-500"
+                            />
+                          ) : null}
+                        </span>
+                      </TableCell>
+                    ) : null}
+                    <TableCell className="max-w-[160px] truncate text-sm">
+                      {lead.campaign_name || lead.campaign_id || "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate text-sm">
+                      {lead.ad_name || lead.ad_id || "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] truncate font-mono text-[11px] text-muted-foreground">
                       {lead.meta_leadgen_id ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate font-mono text-xs">
-                      {lead.campaign_id ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate font-mono text-xs">
-                      {lead.ad_id ?? "—"}
                     </TableCell>
                     <TableCell>
                       {lead.latest_status ? (
