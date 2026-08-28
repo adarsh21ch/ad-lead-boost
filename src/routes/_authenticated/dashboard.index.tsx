@@ -89,9 +89,22 @@ function DashboardPage() {
   });
 
   const tokenHealth = getTokenHealth(account ?? {});
+  const tokenState = account as
+    | {
+        token_status?: string | null;
+        token_last_ok_at?: string | null;
+        token_last_error?: string | null;
+        token_invalid_since?: string | null;
+      }
+    | null
+    | undefined;
+  const tokenStatus = tokenState?.token_status ?? "unknown";
+  const lastOkPhrase = relativeTime(tokenState?.token_last_ok_at);
+  const brokenSince = relativeTime(tokenState?.token_invalid_since);
   const pageStatus =
     ((account as { page_subscribe_status?: string | null } | null | undefined)
       ?.page_subscribe_status ?? null) as string | null;
+
 
   const connectMeta = async () => {
     setBusy(true);
