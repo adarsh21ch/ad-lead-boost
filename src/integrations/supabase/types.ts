@@ -29,6 +29,11 @@ export type Database = {
           page_subscribe_status: string | null
           page_subscribed_at: string | null
           status: string
+          token_invalid_since: string | null
+          token_last_error: string | null
+          token_last_error_at: string | null
+          token_last_ok_at: string | null
+          token_status: string
           webhook_api_key: string
         }
         Insert: {
@@ -45,6 +50,11 @@ export type Database = {
           page_subscribe_status?: string | null
           page_subscribed_at?: string | null
           status?: string
+          token_invalid_since?: string | null
+          token_last_error?: string | null
+          token_last_error_at?: string | null
+          token_last_ok_at?: string | null
+          token_status?: string
           webhook_api_key?: string
         }
         Update: {
@@ -61,6 +71,11 @@ export type Database = {
           page_subscribe_status?: string | null
           page_subscribed_at?: string | null
           status?: string
+          token_invalid_since?: string | null
+          token_last_error?: string | null
+          token_last_error_at?: string | null
+          token_last_ok_at?: string | null
+          token_status?: string
           webhook_api_key?: string
         }
         Relationships: []
@@ -314,11 +329,53 @@ export type Database = {
           },
         ]
       }
+      token_health_events: {
+        Row: {
+          account_id: string
+          created_at: string
+          event: string
+          id: string
+          meta_code: number | null
+          meta_message: string | null
+          meta_subcode: number | null
+          source: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          event: string
+          id?: string
+          meta_code?: number | null
+          meta_message?: string | null
+          meta_subcode?: number | null
+          source?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          meta_code?: number | null
+          meta_message?: string | null
+          meta_subcode?: number | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_health_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      check_token_expiry: { Args: { p_days?: number }; Returns: number }
       claim_due_status_events: {
         Args: { p_limit?: number }
         Returns: {
@@ -336,6 +393,17 @@ export type Database = {
       encrypt_token: {
         Args: { p_key: string; p_token: string }
         Returns: string
+      }
+      record_token_health: {
+        Args: {
+          p_account_id: string
+          p_code?: number
+          p_event: string
+          p_message?: string
+          p_source?: string
+          p_subcode?: number
+        }
+        Returns: undefined
       }
       run_capi_dispatcher: { Args: never; Returns: undefined }
       run_retention_purge: { Args: { p_days?: number }; Returns: number }
