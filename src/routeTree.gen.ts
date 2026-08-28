@@ -27,6 +27,7 @@ import { Route as ApiPublicTestEventRouteImport } from './routes/api/public/test
 import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account/delete'
 import { Route as ApiPublicAccountDisconnectMetaRouteImport } from './routes/api/public/account/disconnect-meta'
 import { Route as ApiPublicCronCapiDispatcherRouteImport } from './routes/api/public/cron/capi-dispatcher'
+import { Route as ApiPublicLeadsEnrichMissingRouteImport } from './routes/api/public/leads/enrich-missing'
 import { Route as ApiPublicPagesConnectRouteImport } from './routes/api/public/pages/connect'
 import { Route as ApiPublicPagesDisconnectRouteImport } from './routes/api/public/pages/disconnect'
 import { Route as ApiPublicPagesRefreshRouteImport } from './routes/api/public/pages/refresh'
@@ -129,6 +130,12 @@ const ApiPublicCronCapiDispatcherRoute =
     path: '/api/public/cron/capi-dispatcher',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLeadsEnrichMissingRoute =
+  ApiPublicLeadsEnrichMissingRouteImport.update({
+    id: '/api/public/leads/enrich-missing',
+    path: '/api/public/leads/enrich-missing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPagesConnectRoute = ApiPublicPagesConnectRouteImport.update({
   id: '/api/public/pages/connect',
   path: '/api/public/pages/connect',
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/leads/enrich-missing': typeof ApiPublicLeadsEnrichMissingRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
   '/api/public/pages/refresh': typeof ApiPublicPagesRefreshRoute
@@ -205,6 +213,7 @@ export interface FileRoutesByTo {
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/leads/enrich-missing': typeof ApiPublicLeadsEnrichMissingRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
   '/api/public/pages/refresh': typeof ApiPublicPagesRefreshRoute
@@ -232,6 +241,7 @@ export interface FileRoutesById {
   '/api/public/account/delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/account/disconnect-meta': typeof ApiPublicAccountDisconnectMetaRoute
   '/api/public/cron/capi-dispatcher': typeof ApiPublicCronCapiDispatcherRoute
+  '/api/public/leads/enrich-missing': typeof ApiPublicLeadsEnrichMissingRoute
   '/api/public/pages/connect': typeof ApiPublicPagesConnectRoute
   '/api/public/pages/disconnect': typeof ApiPublicPagesDisconnectRoute
   '/api/public/pages/refresh': typeof ApiPublicPagesRefreshRoute
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/api/public/account/delete'
     | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
+    | '/api/public/leads/enrich-missing'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
     | '/api/public/pages/refresh'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/api/public/account/delete'
     | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
+    | '/api/public/leads/enrich-missing'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
     | '/api/public/pages/refresh'
@@ -309,6 +321,7 @@ export interface FileRouteTypes {
     | '/api/public/account/delete'
     | '/api/public/account/disconnect-meta'
     | '/api/public/cron/capi-dispatcher'
+    | '/api/public/leads/enrich-missing'
     | '/api/public/pages/connect'
     | '/api/public/pages/disconnect'
     | '/api/public/pages/refresh'
@@ -328,6 +341,7 @@ export interface RootRouteChildren {
   ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
   ApiPublicAccountDisconnectMetaRoute: typeof ApiPublicAccountDisconnectMetaRoute
   ApiPublicCronCapiDispatcherRoute: typeof ApiPublicCronCapiDispatcherRoute
+  ApiPublicLeadsEnrichMissingRoute: typeof ApiPublicLeadsEnrichMissingRoute
   ApiPublicPagesConnectRoute: typeof ApiPublicPagesConnectRoute
   ApiPublicPagesDisconnectRoute: typeof ApiPublicPagesDisconnectRoute
   ApiPublicPagesRefreshRoute: typeof ApiPublicPagesRefreshRoute
@@ -464,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronCapiDispatcherRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leads/enrich-missing': {
+      id: '/api/public/leads/enrich-missing'
+      path: '/api/public/leads/enrich-missing'
+      fullPath: '/api/public/leads/enrich-missing'
+      preLoaderRoute: typeof ApiPublicLeadsEnrichMissingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/pages/connect': {
       id: '/api/public/pages/connect'
       path: '/api/public/pages/connect'
@@ -567,6 +588,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
   ApiPublicAccountDisconnectMetaRoute: ApiPublicAccountDisconnectMetaRoute,
   ApiPublicCronCapiDispatcherRoute: ApiPublicCronCapiDispatcherRoute,
+  ApiPublicLeadsEnrichMissingRoute: ApiPublicLeadsEnrichMissingRoute,
   ApiPublicPagesConnectRoute: ApiPublicPagesConnectRoute,
   ApiPublicPagesDisconnectRoute: ApiPublicPagesDisconnectRoute,
   ApiPublicPagesRefreshRoute: ApiPublicPagesRefreshRoute,

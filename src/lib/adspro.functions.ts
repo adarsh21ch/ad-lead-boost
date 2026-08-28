@@ -196,13 +196,31 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { isLeadEnrichmentEnabled } = await import("@/lib/lead-enrichment.server");
+    const enrichmentEnabled = isLeadEnrichmentEnabled();
+    const columns = enrichmentEnabled
+      ? "id, created_at, meta_leadgen_id, campaign_id, campaign_name, ad_id, ad_name, form_id, full_name, enrichment_status, enrichment_error"
+      : "id, created_at, meta_leadgen_id, campaign_id, ad_id, form_id";
     const { data: leads, error } = await context.supabase
       .from("leads")
-      .select("id, created_at, meta_leadgen_id, campaign_id, ad_id, form_id")
+      .select(columns)
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    const leadIds = (leads ?? []).map((l) => l.id);
+    const rows = (leads ?? []) as unknown as Array<{
+      id: string;
+      created_at: string;
+      meta_leadgen_id: string | null;
+      campaign_id: string | null;
+      campaign_name?: string | null;
+      ad_id: string | null;
+      ad_name?: string | null;
+      form_id: string | null;
+      full_name?: string | null;
+      enrichment_status?: string | null;
+      enrichment_error?: string | null;
+    }>;
+    const leadIds = rows.map((l) => l.id);
     let events: Array<{ lead_id: string; status: string; created_at: string }> = [];
     if (leadIds.length) {
       const { data: ev } = await context.supabase
@@ -214,7 +232,10 @@ export const listLeads = createServerFn({ method: "GET" })
     }
     const latest = new Map<string, string>();
     for (const e of events) if (!latest.has(e.lead_id)) latest.set(e.lead_id, e.status);
-    return (leads ?? []).map((l) => ({ ...l, latest_status: latest.get(l.id) ?? null }));
+    return {
+      enrichmentEnabled,
+      leads: rows.map((l) => ({ ...l, latest_status: latest.get(l.id) ?? null })),
+    };
   });
 
 export const setLeadStatus = createServerFn({ method: "POST" })

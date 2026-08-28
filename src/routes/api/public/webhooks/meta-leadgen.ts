@@ -76,6 +76,8 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
 
         if (!changes.length) return new Response("ok", { status: 200 });
 
+        const newLeadIds: string[] = [];
+
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: accounts } = await supabaseAdmin
@@ -116,18 +118,23 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
               continue;
             }
 
-            const { error } = await supabaseAdmin.from("leads").insert({
-              account_id: accountId,
-              meta_leadgen_id: leadgenId,
-              ad_id: value.ad_id ?? value.adgroup_id ?? null,
-              campaign_id: value.campaign_id ?? null,
-              form_id: value.form_id ?? null,
-              is_test: false,
-              // PII stays null until leads_retrieval is granted.
-              phone_hash: null,
-              email_hash: null,
-              raw_field_data: { webhook: value },
-            });
+            const { data: inserted, error } = await supabaseAdmin
+              .from("leads")
+              .insert({
+                account_id: accountId,
+                meta_leadgen_id: leadgenId,
+                ad_id: value.ad_id ?? value.adgroup_id ?? null,
+                campaign_id: value.campaign_id ?? null,
+                form_id: value.form_id ?? null,
+                is_test: false,
+                // PII stays null here; enrichment writes hashes only.
+                phone_hash: null,
+                email_hash: null,
+                // Webhook envelope ONLY — never the enriched Graph field_data.
+                raw_field_data: { webhook: value },
+              })
+              .select("id")
+              .maybeSingle();
             if (error && error.code === "23505") {
               console.log(`[meta-leadgen] duplicate delivery ignored leadgen_id=${leadgenId}`);
             } else if (error) {
@@ -136,11 +143,37 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
               console.log(
                 `[meta-leadgen] lead stored leadgen_id=${leadgenId} account=${accountId} ad_id=${value.ad_id ?? "null"}`,
               );
+              if (inserted?.id) newLeadIds.push(inserted.id);
             }
           }
         } catch (err) {
           // Never 500: Meta retries and eventually disables the subscription.
           console.error("[meta-leadgen] processing failed:", err);
+        }
+
+        // Enrichment runs AFTER the response is produced and is never awaited:
+        // the 200 must not wait on Graph, and an enrichment throw must never
+        // turn a delivery into a non-200. Anything lost here is picked up by
+        // the backfill route. No-ops entirely when the flag is off.
+        if (newLeadIds.length) {
+          void (async () => {
+            try {
+              const { isLeadEnrichmentEnabled, enrichLead } = await import(
+                "@/lib/lead-enrichment.server"
+              );
+              if (!isLeadEnrichmentEnabled()) return;
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              for (const id of newLeadIds) {
+                try {
+                  await enrichLead(supabaseAdmin, id);
+                } catch (err) {
+                  console.error(`[meta-leadgen] enrichment failed lead=${id}`, err);
+                }
+              }
+            } catch (err) {
+              console.error("[meta-leadgen] enrichment bootstrap failed", err);
+            }
+          })();
         }
 
         return new Response("ok", { status: 200 });
