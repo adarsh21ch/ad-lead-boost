@@ -132,7 +132,60 @@ function DashboardPage() {
           </p>
         </div>
 
+        {account && tokenStatus === "invalid" && (
+          <div
+            role="alert"
+            data-testid="token-invalid-banner"
+            className="rounded-md border border-destructive bg-destructive/10 p-4"
+          >
+            <p className="font-semibold text-destructive">Lead syncing has stopped.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your Meta connection is no longer valid, so lead outcomes are not reaching Meta.
+              Reconnect to resume.
+            </p>
+            {brokenSince && (
+              <p className="mt-1 text-sm text-muted-foreground">Broken since {brokenSince}.</p>
+            )}
+            <Button onClick={connectMeta} disabled={busy} size="sm" className="mt-3">
+              {busy ? "Redirecting…" : "Reconnect Meta"}
+            </Button>
+            {tokenState?.token_last_error && (
+              <p className="mt-3 font-mono text-xs break-words text-muted-foreground">
+                {tokenState.token_last_error}
+              </p>
+            )}
+          </div>
+        )}
+
+        {account && tokenStatus === "expiring_soon" && !expiringDismissed && (
+          <div
+            role="status"
+            className="rounded-md border border-amber-500/60 bg-amber-500/10 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                Your Meta connection expires on{" "}
+                {tokenHealth.expiresAt?.toLocaleDateString() ?? "an unknown date"}. Reconnect to
+                avoid interruption.
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setExpiringDismissed(true)}>
+                Dismiss
+              </Button>
+            </div>
+            <Button
+              onClick={connectMeta}
+              disabled={busy}
+              size="sm"
+              variant="outline"
+              className="mt-3"
+            >
+              {busy ? "Redirecting…" : "Reconnect Meta"}
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
+
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !account ? (
           <Card>
