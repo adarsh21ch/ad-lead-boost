@@ -247,6 +247,8 @@ export async function deliverStatusEvent(
     ],
   };
 
+  const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
+
   try {
     const res = await fetch(
       `${graphUrl(`${account.meta_dataset_id}/events`)}?access_token=${encodeURIComponent(accessToken)}`,
@@ -257,17 +259,29 @@ export async function deliverStatusEvent(
       },
     );
     const json = await res.json().catch(() => null);
-    const metaError = (json as { error?: unknown } | null)?.error;
+    const metaError = (json as { error?: Record<string, unknown> } | null)?.error;
     if (!res.ok || metaError) {
       console.error(
         `[capi-dispatcher] event ${statusEvent.id} attempt ${attempt} failed status=${res.status} body=${JSON.stringify(json)}`,
       );
+      await reportMetaError(statusEvent.account_id, "dispatcher", {
+        code: typeof metaError?.["code"] === "number" ? (metaError["code"] as number) : null,
+        errorSubcode:
+          typeof metaError?.["error_subcode"] === "number"
+            ? (metaError["error_subcode"] as number)
+            : null,
+        httpStatus: res.status,
+        message: typeof metaError?.["message"] === "string" ? (metaError["message"] as string) : null,
+      });
       return fail("meta_error", res.status, json);
     }
+    await reportTokenHealth(statusEvent.account_id, "ok", "dispatcher");
     return succeed(res.status, json);
   } catch (err) {
+    // Network/transport failure: Meta being flaky is never a token verdict.
     return fail(err instanceof Error ? err.message : "network_error");
   }
+
 }
 
 async function getAttemptCount(admin: AdminClient, statusEventId: string) {
