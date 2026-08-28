@@ -151,6 +151,31 @@ export const Route = createFileRoute("/api/public/webhooks/meta-leadgen")({
           console.error("[meta-leadgen] processing failed:", err);
         }
 
+        // Enrichment runs AFTER the response is produced and is never awaited:
+        // the 200 must not wait on Graph, and an enrichment throw must never
+        // turn a delivery into a non-200. Anything lost here is picked up by
+        // the backfill route. No-ops entirely when the flag is off.
+        if (newLeadIds.length) {
+          void (async () => {
+            try {
+              const { isLeadEnrichmentEnabled, enrichLead } = await import(
+                "@/lib/lead-enrichment.server"
+              );
+              if (!isLeadEnrichmentEnabled()) return;
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              for (const id of newLeadIds) {
+                try {
+                  await enrichLead(supabaseAdmin, id);
+                } catch (err) {
+                  console.error(`[meta-leadgen] enrichment failed lead=${id}`, err);
+                }
+              }
+            } catch (err) {
+              console.error("[meta-leadgen] enrichment bootstrap failed", err);
+            }
+          })();
+        }
+
         return new Response("ok", { status: 200 });
       },
     },
