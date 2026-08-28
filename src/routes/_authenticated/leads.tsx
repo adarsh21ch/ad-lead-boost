@@ -44,10 +44,55 @@ function LeadsPage() {
 
   const getAccountFn = useServerFn(getIntegrationAccount);
 
-  const { data: leads, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: () => listLeadsFn(),
   });
+  const leads = data?.leads;
+  const enrichmentEnabled = Boolean(data?.enrichmentEnabled);
+
+  const [backfilling, setBackfilling] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+
+  const hasEnrichable = Boolean(
+    leads?.some(
+      (l) => l.enrichment_status === "not_attempted" || l.enrichment_status === "failed",
+    ),
+  );
+
+  const fetchMissingNames = async () => {
+    setBackfilling(true);
+    try {
+      const res = await fetch("/api/public/leads/enrich-missing", { method: "POST" });
+      const body = (await res.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            error?: string;
+            processed?: number;
+            enriched?: number;
+            failed?: number;
+          }
+        | null;
+      if (body?.error === "scope_missing") {
+        setNeedsReconnect(true);
+        return;
+      }
+      if (body?.error === "rate_limited") {
+        toast.warning(
+          `Meta rate limit reached — stopped after ${body.processed ?? 0} lead(s). Try again later.`,
+        );
+      } else if (!body?.ok) {
+        toast.error("Could not fetch names right now.");
+      } else {
+        toast.success(`${body.enriched ?? 0} leads updated, ${body.failed ?? 0} failed`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    } catch {
+      toast.error("Could not fetch names right now.");
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   const { data: account } = useQuery({
     queryKey: ["integration-account"],
