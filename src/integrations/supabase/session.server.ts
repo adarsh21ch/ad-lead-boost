@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { getCookies, setCookie, setResponseHeader } from "@tanstack/react-start/server";
+import { getCookies, getRequestHeader, setCookie, setResponseHeader } from "@tanstack/react-start/server";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 const AUTH_COOKIE_OPTIONS: CookieOptions = {
@@ -67,12 +68,32 @@ export function createSupabaseServerClient() {
   });
 }
 
+/**
+ * Resolves the caller from cookies first, then from the `Authorization: Bearer`
+ * header the client function middleware attaches. The bearer fallback matters
+ * in framed preview surfaces, where SameSite=Lax auth cookies are not sent and
+ * a cookie-only check would bounce a signed-in user back to /auth.
+ */
 export async function getServerAuthUser() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return {
-    id: data.user.id,
-    email: data.user.email ?? null,
-  };
+  if (!error && data.user) {
+    return { id: data.user.id, email: data.user.email ?? null };
+  }
+
+  const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization");
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+
+  const SUPABASE_URL = process.env["SUPABASE_URL"];
+  const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
+
+  const bearerClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
+  });
+  const { data: bearerData, error: bearerError } = await bearerClient.auth.getUser(token);
+  if (bearerError || !bearerData.user) return null;
+  return { id: bearerData.user.id, email: bearerData.user.email ?? null };
 }
