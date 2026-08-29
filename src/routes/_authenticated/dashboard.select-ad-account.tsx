@@ -8,6 +8,8 @@ import {
   listMetaPixels,
   saveAdAccountSelection,
 } from "@/lib/adspro.functions";
+import { validateAndSaveAdAccount } from "@/lib/connection.functions";
+import { metaErrorCopy } from "@/lib/meta-error-copy";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,8 +89,12 @@ function SelectAdAccountError({ error }: { error: unknown }) {
 function SelectAdAccountPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search = useSearch({ strict: false }) as { account?: string };
+  const search = useSearch({ strict: false }) as { account?: string; only?: string };
   const accountId = search.account ?? "";
+  // "only=adaccount" comes from Integration → Change ad account: swap the ad account
+  // and leave the existing dataset untouched.
+  const adAccountOnly = search.only === "adaccount";
+  const [savingAdAccountId, setSavingAdAccountId] = useState<string | null>(null);
   const [adAccountId, setAdAccountId] = useState<string | null>(null);
   const [savingDatasetId, setSavingDatasetId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -98,6 +104,7 @@ function SelectAdAccountPage() {
   const listAdAccounts = useServerFn(listMetaAdAccounts);
   const listPixels = useServerFn(listMetaPixels);
   const saveSelection = useServerFn(saveAdAccountSelection);
+  const saveAdAccountOnly = useServerFn(validateAndSaveAdAccount);
   const getConnectUrl = useServerFn(getMetaConnectUrl);
 
   const adAccountsQuery = useQuery({
@@ -118,7 +125,7 @@ function SelectAdAccountPage() {
         data: businessId ? { accountId, adAccountId, businessId } : { accountId, adAccountId },
       });
     },
-    enabled: Boolean(accountId && adAccountId),
+    enabled: Boolean(accountId && adAccountId) && !adAccountOnly,
     retry: false,
   });
 
@@ -142,6 +149,26 @@ function SelectAdAccountPage() {
       window.location.href = url;
     } catch (error) {
       setSaveError(plainError(error).message);
+    }
+  };
+
+  const saveAdAccount = async (id: string) => {
+    setSavingAdAccountId(id);
+    setSaveError(null);
+    try {
+      const result = await saveAdAccountOnly({ data: { accountId, adAccountId: id } });
+      if (!result.ok) {
+        setSaveError(metaErrorCopy(result.error));
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
+      toast.success(`Ad account saved: ${result.account.meta_ad_account_id}`);
+      navigate({ to: "/dashboard/integration" });
+    } catch (error) {
+      setSaveError(plainError(error).message);
+    } finally {
+      setSavingAdAccountId(null);
     }
   };
 
@@ -170,7 +197,11 @@ function SelectAdAccountPage() {
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Select ad account</h1>
-          <p className="text-sm text-muted-foreground">Choose which Meta ad account and dataset this connection uses.</p>
+          <p className="text-sm text-muted-foreground">
+            {adAccountOnly
+              ? "Spend and performance data will now come from the new ad account. Your leads are unaffected — those arrive from your connected Facebook Page."
+              : "Choose which Meta ad account and dataset this connection uses."}
+          </p>
         </div>
 
         {!accountId ? (
@@ -198,6 +229,9 @@ function SelectAdAccountPage() {
           </div>
         ) : (
           <div className="grid gap-3">
+            {adAccountOnly && saveError ? (
+              <ErrorPanel title="Could not switch ad account" error={plainError(saveError)} onDismiss={() => setSaveError(null)} />
+            ) : null}
             {adAccounts.map((account) => (
               <Card key={account.id} className={adAccountId === account.id ? "border-primary" : undefined}>
                 <CardHeader>
@@ -206,12 +240,22 @@ function SelectAdAccountPage() {
                       <CardTitle className="text-base">{account.name}</CardTitle>
                       <CardDescription className="font-mono">{account.id}</CardDescription>
                     </div>
-                    <Button variant={adAccountId === account.id ? "default" : "outline"} size="sm" onClick={() => setAdAccountId(account.id)}>
-                      {adAccountId === account.id ? "Selected" : "Select"}
-                    </Button>
+                    {adAccountOnly ? (
+                      <Button
+                        size="sm"
+                        disabled={savingAdAccountId !== null}
+                        onClick={() => saveAdAccount(account.id)}
+                      >
+                        {savingAdAccountId === account.id ? "Checking…" : "Use this ad account"}
+                      </Button>
+                    ) : (
+                      <Button variant={adAccountId === account.id ? "default" : "outline"} size="sm" onClick={() => setAdAccountId(account.id)}>
+                        {adAccountId === account.id ? "Selected" : "Select"}
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
-                {adAccountId === account.id ? (
+                {adAccountId === account.id && !adAccountOnly ? (
                   <CardContent className="space-y-3 border-t pt-4">
                     <p className="text-sm font-medium">Pick a dataset (pixel):</p>
                     {pixelsQuery.isPending ? (
