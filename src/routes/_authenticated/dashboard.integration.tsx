@@ -526,9 +526,13 @@ Content-Type: application/json
                     <CopyButton value={curlExample} label="cURL" />
                   </div>
                 </details>
-              </CardContent>
-            </Card>
+                  </div>
+                </Disclosure>
+              </Section>
 
+              <h2 className="pt-2 text-lg font-semibold tracking-tight">Testing</h2>
+
+              <Section id="test">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Send test event</CardTitle>
