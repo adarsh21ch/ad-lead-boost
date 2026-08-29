@@ -657,6 +657,30 @@ export type Database = {
           },
         ]
       }
+      insights_sync_status: {
+        Row: {
+          account_id: string | null
+          age: string | null
+          entities_upserted: number | null
+          error: string | null
+          finished_at: string | null
+          meta_code: number | null
+          meta_subcode: number | null
+          rows_written: number | null
+          started_at: string | null
+          status: string | null
+          verdict: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_sync_runs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_token_expiry: { Args: { p_days?: number }; Returns: number }
@@ -702,6 +726,10 @@ export type Database = {
           p_subcode?: number
         }
         Returns: undefined
+      }
+      request_insights_sync: {
+        Args: { p_account_id: string; p_days?: number }
+        Returns: Json
       }
       run_capi_dispatcher: { Args: never; Returns: undefined }
       run_insights_sync: { Args: { p_days?: number }; Returns: undefined }
