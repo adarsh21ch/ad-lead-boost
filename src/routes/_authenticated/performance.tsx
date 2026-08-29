@@ -221,7 +221,7 @@ function PerformancePage() {
       if (leadsError) throw leadsError;
 
 
-      const ids = (leads ?? []).map((l) => l.id);
+      const ids = (leads ?? []).map((l) => l.id).filter((id): id is string => Boolean(id));
       const reached = new Map<string, Set<string>>();
       for (let i = 0; i < ids.length; i += 200) {
         const chunk = ids.slice(i, i + 200);
