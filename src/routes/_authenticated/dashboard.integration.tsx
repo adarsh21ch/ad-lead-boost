@@ -193,6 +193,18 @@ function IntegrationPage() {
     enabled: myAccounts !== undefined,
   });
 
+  const connectionAccount: ConnectionAccount = {
+    id: (account?.id ?? "") as string,
+    meta_ad_account_id:
+      (account as { meta_ad_account_id?: string | null } | undefined)?.meta_ad_account_id ?? null,
+    meta_ad_account_name:
+      (account as { meta_ad_account_name?: string | null } | undefined)?.meta_ad_account_name ??
+      null,
+    meta_dataset_id:
+      (account as { meta_dataset_id?: string | null } | undefined)?.meta_dataset_id ?? null,
+    meta_dataset_name:
+      (account as { meta_dataset_name?: string | null } | undefined)?.meta_dataset_name ?? null,
+  };
 
   const ready = Boolean(account && account.status === "active" && account.meta_dataset_id);
   const tokenHealth = getTokenHealth(account ?? {});
