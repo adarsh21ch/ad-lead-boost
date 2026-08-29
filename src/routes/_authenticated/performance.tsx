@@ -491,15 +491,15 @@ function Tile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FunnelStep({ label, value, prev }: { label: string; value: number; prev?: number }) {
-  const pct = prev && prev > 0 ? `${Math.round((value / prev) * 100)}%` : null;
+function FunnelStep({ label, value, total }: { label: string; value: number; total?: number }) {
+  const pct = total && total > 0 ? `${Math.round((value / total) * 100)}%` : null;
   return (
     <div className="rounded-md border p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{formatNumber(value)}</p>
-      {prev !== undefined && (
+      {total !== undefined && (
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {pct ? `${pct} of previous step` : "—"}
+          {pct ? `${pct} of leads` : "—"}
         </p>
       )}
     </div>
