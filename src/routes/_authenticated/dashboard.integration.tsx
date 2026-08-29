@@ -256,12 +256,21 @@ Content-Type: application/json
 
 
 
-        {account && tokenInvalid && (
+        {/* Meta connection: a thin strip when healthy, a full red card when not. */}
+        {account && (tokenInvalid || tokenExpired) ? (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
-            <p className="font-semibold text-destructive">Your Meta connection is no longer valid.</p>
+            <p className="font-semibold text-destructive">
+              {tokenInvalid
+                ? "Your Meta connection is no longer valid."
+                : "Your Meta connection has expired."}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Lead outcomes are not reaching Meta and spend data has stopped updating. Reconnect to
               resume.
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This is your Meta login. The Page, ad account and pixel below are the things it gives
+              AdsPro access to.
             </p>
             {tokenState?.token_last_error && (
               <p className="mt-2 font-mono text-xs break-words text-muted-foreground">
@@ -272,7 +281,32 @@ Content-Type: application/json
               {reconnecting ? "Redirecting…" : "Reconnect Meta"}
             </Button>
           </div>
-        )}
+        ) : account ? (
+          <div className="rounded-md border px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium">Meta connection</span>
+              <span className="text-muted-foreground">
+                ·{" "}
+                {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null
+                  ? `Connected — expires in ${tokenHealth.daysRemaining} ${tokenHealth.daysRemaining === 1 ? "day" : "days"}`
+                  : "Connected — leads, spend and event delivery are all authorised."}
+              </span>
+              <button
+                type="button"
+                onClick={reconnectMeta}
+                disabled={reconnecting}
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This is your Meta login. The Page, ad account and pixel below are the things it gives
+              AdsPro access to.
+            </p>
+          </div>
+        ) : null}
+
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
