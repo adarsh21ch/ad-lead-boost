@@ -498,6 +498,11 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
         attempt: (row.retry_count ?? 0) + 1,
       };
     });
+    // Belt and braces: guarantee the rendered order is strictly newest first.
+    return rows.sort(
+      (a, b) =>
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+    );
   });
 
 /** Pages discovered for the caller's account (read-only; writes happen in the API routes). */
