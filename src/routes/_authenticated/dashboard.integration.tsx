@@ -457,7 +457,6 @@ Content-Type: application/json
 
               <Section id="webhook">
             <Card>
-            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Your webhook endpoint</CardTitle>
                 <CardDescription>Point your CRM or Zapier at this URL.</CardDescription>
