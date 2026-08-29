@@ -473,10 +473,10 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
       .select(
         "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status, dispatch_status)",
       )
-      // Order the PARENT rows (capi_delivery_logs) newest first. Ordering a
-      // referenced table only sorts the embedded rows, which left this log
-      // effectively unordered.
-      .order("created_at", { ascending: false })
+      // capi_delivery_logs has no own timestamp, so order the PARENT rows by the
+      // embedded status_events.created_at (newest first). The previous
+      // `referencedTable` form only sorted embedded rows, leaving the log unordered.
+      .order("status_events(created_at)", { ascending: false })
       .limit(20);
     if (error) throw error;
     return (data ?? []).map((row) => {
