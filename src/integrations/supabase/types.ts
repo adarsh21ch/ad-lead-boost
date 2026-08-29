@@ -20,6 +20,7 @@ export type Database = {
           id: string
           meta_access_token_encrypted: string | null
           meta_ad_account_id: string | null
+          meta_ad_account_timezone: string | null
           meta_dataset_id: string | null
           meta_page_id: string | null
           meta_token_expires_at: string | null
@@ -41,6 +42,7 @@ export type Database = {
           id?: string
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
+          meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
           meta_page_id?: string | null
           meta_token_expires_at?: string | null
@@ -62,6 +64,7 @@ export type Database = {
           id?: string
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
+          meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
           meta_page_id?: string | null
           meta_token_expires_at?: string | null
@@ -79,6 +82,142 @@ export type Database = {
           webhook_api_key?: string
         }
         Relationships: []
+      }
+      ad_entities: {
+        Row: {
+          account_id: string
+          creative_id: string | null
+          creative_thumbnail_url: string | null
+          daily_budget: number | null
+          effective_status: string | null
+          entity_id: string
+          first_seen_at: string
+          last_synced_at: string
+          level: string
+          lifetime_budget: number | null
+          name: string | null
+          objective: string | null
+          optimization_goal: string | null
+          parent_id: string | null
+          status: string | null
+        }
+        Insert: {
+          account_id: string
+          creative_id?: string | null
+          creative_thumbnail_url?: string | null
+          daily_budget?: number | null
+          effective_status?: string | null
+          entity_id: string
+          first_seen_at?: string
+          last_synced_at?: string
+          level: string
+          lifetime_budget?: number | null
+          name?: string | null
+          objective?: string | null
+          optimization_goal?: string | null
+          parent_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          account_id?: string
+          creative_id?: string | null
+          creative_thumbnail_url?: string | null
+          daily_budget?: number | null
+          effective_status?: string | null
+          entity_id?: string
+          first_seen_at?: string
+          last_synced_at?: string
+          level?: string
+          lifetime_budget?: number | null
+          name?: string | null
+          objective?: string | null
+          optimization_goal?: string | null
+          parent_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_entities_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_insights_daily: {
+        Row: {
+          account_id: string
+          actions: Json | null
+          attribution_window: string
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          ctr: number | null
+          currency: string | null
+          entity_id: string
+          frequency: number | null
+          impressions: number | null
+          last_seen_at: string
+          level: string
+          meta_leads: number | null
+          reach: number | null
+          snapshot_at: string
+          spend: number | null
+          stat_date: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          account_id: string
+          actions?: Json | null
+          attribution_window: string
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          ctr?: number | null
+          currency?: string | null
+          entity_id: string
+          frequency?: number | null
+          impressions?: number | null
+          last_seen_at?: string
+          level: string
+          meta_leads?: number | null
+          reach?: number | null
+          snapshot_at?: string
+          spend?: number | null
+          stat_date: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          actions?: Json | null
+          attribution_window?: string
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          ctr?: number | null
+          currency?: string | null
+          entity_id?: string
+          frequency?: number | null
+          impressions?: number | null
+          last_seen_at?: string
+          level?: string
+          meta_leads?: number | null
+          reach?: number | null
+          snapshot_at?: string
+          spend?: number | null
+          stat_date?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_insights_daily_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       capi_delivery_logs: {
         Row: {
@@ -117,6 +256,71 @@ export type Database = {
             columns: ["status_event_id"]
             isOneToOne: false
             referencedRelation: "status_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insights_sync_runs: {
+        Row: {
+          account_id: string | null
+          date_from: string | null
+          date_to: string | null
+          days_requested: number | null
+          entities_upserted: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          levels: string[] | null
+          meta_calls: number
+          meta_code: number | null
+          meta_subcode: number | null
+          rows_unchanged: number
+          rows_written: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          account_id?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          days_requested?: number | null
+          entities_upserted?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          levels?: string[] | null
+          meta_calls?: number
+          meta_code?: number | null
+          meta_subcode?: number | null
+          rows_unchanged?: number
+          rows_written?: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          account_id?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          days_requested?: number | null
+          entities_upserted?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          levels?: string[] | null
+          meta_calls?: number
+          meta_code?: number | null
+          meta_subcode?: number | null
+          rows_unchanged?: number
+          rows_written?: number
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_sync_runs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -372,7 +576,87 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ad_insights_current: {
+        Row: {
+          account_id: string | null
+          actions: Json | null
+          attribution_window: string | null
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          ctr: number | null
+          currency: string | null
+          entity_id: string | null
+          frequency: number | null
+          impressions: number | null
+          last_seen_at: string | null
+          level: string | null
+          meta_leads: number | null
+          reach: number | null
+          snapshot_at: string | null
+          spend: number | null
+          stat_date: string | null
+          sync_run_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_insights_daily_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_performance_daily: {
+        Row: {
+          account_id: string | null
+          adspro_leads: number | null
+          attribution_window: string | null
+          booked: number | null
+          clicks: number | null
+          close_rate: number | null
+          contacted: number | null
+          cost_per_booked: number | null
+          cost_per_lead: number | null
+          cost_per_purchase: number | null
+          cost_per_qualified_lead: number | null
+          cpc: number | null
+          cpm: number | null
+          creative_thumbnail_url: string | null
+          ctr: number | null
+          currency: string | null
+          disqualified: number | null
+          effective_status: string | null
+          entity_id: string | null
+          entity_name: string | null
+          frequency: number | null
+          impressions: number | null
+          last_seen_at: string | null
+          lead_delivery_gap: number | null
+          level: string | null
+          low_sample: boolean | null
+          meta_leads: number | null
+          no_show: number | null
+          parent_id: string | null
+          purchased: number | null
+          qualification_rate: number | null
+          qualified: number | null
+          reach: number | null
+          snapshot_at: string | null
+          spend: number | null
+          stat_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_insights_daily_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_token_expiry: { Args: { p_days?: number }; Returns: number }
@@ -394,6 +678,20 @@ export type Database = {
         Args: { p_key: string; p_token: string }
         Returns: string
       }
+      finish_insights_sync_run: {
+        Args: {
+          p_code?: number
+          p_entities?: number
+          p_error?: string
+          p_meta_calls?: number
+          p_run_id: string
+          p_status: string
+          p_subcode?: number
+          p_unchanged?: number
+          p_written?: number
+        }
+        Returns: undefined
+      }
       record_token_health: {
         Args: {
           p_account_id: string
@@ -406,7 +704,33 @@ export type Database = {
         Returns: undefined
       }
       run_capi_dispatcher: { Args: never; Returns: undefined }
+      run_insights_sync: { Args: { p_days?: number }; Returns: undefined }
       run_retention_purge: { Args: { p_days?: number }; Returns: number }
+      start_insights_sync_run: {
+        Args: {
+          p_account_id: string
+          p_date_from: string
+          p_date_to: string
+          p_days: number
+          p_levels: string[]
+        }
+        Returns: string
+      }
+      upsert_ad_entities: {
+        Args: { p_account_id: string; p_rows: Json }
+        Returns: number
+      }
+      upsert_ad_insights: {
+        Args: {
+          p_account_id: string
+          p_attribution_window: string
+          p_currency: string
+          p_level: string
+          p_rows: Json
+          p_sync_run_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
