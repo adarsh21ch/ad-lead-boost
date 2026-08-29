@@ -296,6 +296,37 @@ Content-Type: application/json
           <>
             <h2 className="pt-2 text-lg font-semibold tracking-tight">Connection settings</h2>
 
+            {/* 1. Meta connection — is the login alive at all. */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Meta connection</CardTitle>
+                <CardDescription>The Meta login everything else depends on.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm font-medium">
+                  {tokenInvalid
+                    ? "Not valid — reconnect required"
+                    : tokenExpired
+                      ? "Expired — reconnect required"
+                      : tokenHealth.state === "expiring"
+                        ? "Connected — expiring soon"
+                        : "Connected"}
+                </p>
+                {tokenHealth.message ? (
+                  <p className="text-sm text-muted-foreground">{tokenHealth.message}</p>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={reconnectMeta}
+                  disabled={reconnecting}
+                >
+                  {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* 2. Facebook Page — where leads come IN. */}
             <FacebookPageCard
               account={{
                 meta_page_id: (account as { meta_page_id?: string | null }).meta_page_id ?? null,
@@ -313,15 +344,17 @@ Content-Type: application/json
               reconnecting={reconnecting}
             />
 
+            {/* 3. Ad account (read) → 4. Pixel (back) → 5. Data collection (health). */}
             <ConnectionSettings
               account={{
                 id: account!.id as string,
                 meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
                 meta_ad_account_name: (account as { meta_ad_account_name?: string | null }).meta_ad_account_name ?? null,
-
                 meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
+                meta_dataset_name: (account as { meta_dataset_name?: string | null }).meta_dataset_name ?? null,
               }}
             />
+
 
             <Card>
               <CardHeader>
