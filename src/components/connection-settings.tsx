@@ -9,7 +9,7 @@ import {
   validateAndSaveDataset,
 } from "@/lib/connection.functions";
 import { metaErrorCopy } from "@/lib/meta-error-copy";
-import { adAccountLabel } from "@/lib/ad-account-label";
+import { adAccountLabel, adAccountPrimary } from "@/lib/ad-account-label";
 import { AdAccountIdentityLines } from "@/components/ad-account-identity";
 import { AdAccountList } from "@/components/ad-account-list";
 import { Button } from "@/components/ui/button";
