@@ -316,22 +316,22 @@ function PerformancePage() {
                   <FunnelStep
                     label="Contacted"
                     value={funnelQuery.data.contacted}
-                    prev={funnelQuery.data.total}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Qualified"
                     value={funnelQuery.data.qualified}
-                    prev={funnelQuery.data.contacted}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Booked"
                     value={funnelQuery.data.booked}
-                    prev={funnelQuery.data.qualified}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Purchased"
                     value={funnelQuery.data.purchased}
-                    prev={funnelQuery.data.booked}
+                    total={funnelQuery.data.total}
                   />
                 </div>
                 {funnelQuery.data.unlinked > 0 && (
@@ -473,10 +473,12 @@ function PerformancePage() {
         </div>
 
         {/* TASK 6 — provenance footer */}
-        <p className="border-t pt-4 text-xs text-muted-foreground">
-          Attribution: {attributionWindow ?? "—"} · Meta revises these figures for up to 28 days ·
-          Last updated {newestSnapshot ? new Date(newestSnapshot).toLocaleString() : "—"}.
-        </p>
+        {hasAnyInsights && (
+          <p className="border-t pt-4 text-xs text-muted-foreground">
+            Attribution: {attributionWindow ?? "—"} · Meta revises these figures for up to 28 days ·
+            Last updated {newestSnapshot ? new Date(newestSnapshot).toLocaleString() : "—"}.
+          </p>
+        )}
       </div>
     </AppShell>
   );
@@ -491,15 +493,15 @@ function Tile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FunnelStep({ label, value, prev }: { label: string; value: number; prev?: number }) {
-  const pct = prev && prev > 0 ? `${Math.round((value / prev) * 100)}%` : null;
+function FunnelStep({ label, value, total }: { label: string; value: number; total?: number }) {
+  const pct = total && total > 0 ? `${Math.round((value / total) * 100)}%` : null;
   return (
     <div className="rounded-md border p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{formatNumber(value)}</p>
-      {prev !== undefined && (
+      {total !== undefined && (
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {pct ? `${pct} of previous step` : "—"}
+          {pct ? `${pct} of leads` : "—"}
         </p>
       )}
     </div>
