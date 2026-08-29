@@ -1,0 +1,57 @@
+AdsPro (https://adsproindia.com) is a lead-quality feedback tool for advertisers
+running Meta Lead Ads. It sends lead-outcome events (Contacted, Qualified,
+Disqualified, Scheduled, No-show, Purchased) back to the advertiser's own dataset
+through the Conversions API, so Meta can optimise delivery toward leads that
+actually convert (Conversion Leads), not just form submissions.
+
+ads_management is used for exactly two things:
+
+1. READ - list the ad accounts and datasets the signed-in user already has access
+   to, so they can choose which one AdsPro should send events to.
+2. WRITE - limited strictly to the Conversions API events endpoint for the dataset
+   the user selected.
+
+AdsPro never creates, edits, pauses or deletes campaigns, ad sets, ads or
+creatives, and never spends budget.
+
+TEST LOGIN
+URL:      https://adsproindia.com/auth
+Email:    review@adsproindia.com
+Password: 88888888
+
+STEPS TO REPRODUCE
+
+1.  Sign in at https://adsproindia.com/auth with the credentials above.
+    You land on the Dashboard, which shows a "Connect Meta" card.
+
+2.  In the field labelled "Workspace name (e.g. Acme Solar)", type any name -
+    for example "Reviewer Test". This field is required.
+
+3.  Click the "Connect Meta" button. Authorise with a Facebook account that has
+    an ad account and a Page. You are returned to AdsPro.
+
+4.  Choose the ad account and dataset AdsPro should send events to. If you are
+    not taken there automatically, click "Integration" in the left sidebar and
+    then "Choose ad account & dataset". Select one ad account and one dataset
+    and save. This is the only place AdsPro reads ad-account data.
+
+5.  Click "Leads" in the left sidebar. Pick any lead and choose "Qualified" in
+    the "Set status" column.
+
+6.  A background dispatcher runs every two minutes and sends a Lead_Qualified
+    server event to the dataset selected in step 4, via the Conversions API.
+
+7.  Click "Deliveries" in the left sidebar. The new row shows the Meta event
+    name, HTTP 200, and Meta's verbatim response body, for example:
+    {"messages":[],"fbtrace_id":"AEAz8UKkZ52gGoEgIAlCkmZ","events_received":1}
+    "events_received": 1 confirms Meta accepted the event.
+
+TO SEE IT IMMEDIATELY instead of waiting two minutes: on the Integration page use
+"Send test event". It runs the real delivery path. You may paste a Test Event Code
+from Events Manager -> your dataset -> Test Events, and the event will appear
+there rather than affecting optimisation.
+
+TO REVOKE ACCESS: Settings -> Meta connection -> "Disconnect Meta". AdsPro
+unsubscribes the Page, calls DELETE /me/permissions to revoke every granted
+permission on Meta's side, and erases the stored access token, ad account,
+dataset and Page.

@@ -1,0 +1,63 @@
+AdsPro receives the advertiser's Meta Lead Ads submissions so their sales team can
+record each lead's outcome, and so those outcomes can be synced back to Meta via
+the Conversions API for Conversion Leads optimisation.
+
+leads_retrieval is required to subscribe the advertiser's Page to the "leadgen"
+webhook field. Calling
+POST /{page-id}/subscribed_apps?subscribed_fields=leadgen
+without it returns:
+(#200) To subscribe to the leadgen field, one of these permissions is needed
+This permission is what allows the advertiser's leads to reach AdsPro at all.
+
+TEST LOGIN
+URL:      https://adsproindia.com/auth
+Email:    review@adsproindia.com
+Password: 88888888
+
+STEPS TO REPRODUCE
+
+1.  Sign in at https://adsproindia.com/auth with the credentials above.
+    You land on the Dashboard, which shows a "Connect Meta" card.
+
+2.  In the field labelled "Workspace name (e.g. Acme Solar)", type any name -
+    for example "Reviewer Test". This field is required.
+
+3.  Click the "Connect Meta" button and authorise with a Facebook account that
+    has an ad account and a Page with a Lead Ads form.
+
+4.  Choose an ad account and dataset. If you are not taken there automatically,
+    click "Integration" in the left sidebar, then "Choose ad account & dataset".
+    The Facebook Page card appears on the Integration page once this is done.
+
+5.  In the "Facebook Page" card, use the dropdown labelled "Choose the Page your
+    lead ads run from" to select your Page, then confirm.
+    AdsPro calls POST /{page-id}/subscribed_apps with subscribed_fields=leadgen.
+    On success the card reads:
+    "Connected - leads from this Page will arrive automatically"
+    with the Page name, Page ID and the subscription timestamp.
+    On failure AdsPro shows Meta's verbatim error and deliberately does NOT save
+    the Page, so a dead subscription can never look connected.
+
+6.  Open Meta's Lead Ads Testing Tool for that Page and form and create a test
+    lead. (The tool allows one test lead per form - delete the previous one
+    first.)
+
+7.  Return to AdsPro and click "Leads" in the left sidebar. The lead appears
+    within seconds, identified by its Meta leadgen_id, with the form and ad it
+    came from.
+
+8.  Set that lead's status to "Qualified". Within two minutes the "Deliveries"
+    page shows a Lead_Qualified event delivered to Meta with
+    "events_received": 1.
+
+DATA HANDLING
+AdsPro stores only identifiers: the leadgen_id, form_id, ad_id and timestamp.
+It does not store the lead's name, email address or phone number. Meta's
+Conversions API accepts lead_id as the preferred match key for lead-ads
+conversions, so the full optimisation loop works without AdsPro holding any
+personal data. Lead records are retained for a maximum of 90 days.
+
+Users can revoke access at any time via Settings -> Meta connection ->
+"Disconnect Meta" (which calls DELETE /me/permissions), or delete every record
+permanently via Settings -> Danger zone. Both paths are documented at
+https://adsproindia.com/data-deletion

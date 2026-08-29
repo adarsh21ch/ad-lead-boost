@@ -1,0 +1,32 @@
+"Build is clean" does not answer any of the seven items. token_health_events still has ZERO
+rows, so none of this has been observed working. Answer these, then publish.
+
+FIRST — do NOT build these two, they already exist in the database and I do not want
+duplicates:
+  - "Add token audit trail" -> public.token_health_events already IS the audit trail
+  - "Implement auto recheck job" -> the pg_cron job adspro-token-expiry-check (03:00 UTC)
+    already does this, calling public.check_token_expiry(7)
+Read them, use them, do not recreate them.
+
+ANSWER THESE:
+
+1. List every Meta call site you added reportTokenHealth to, with its source value. Then
+   state explicitly whether ANY Meta call in the codebase still does not report. Name it.
+
+3. THE ONE THAT MATTERS. Prove a rate-limit error (code 4 / 17 / 80004) does NOT mark the
+   token invalid. The ad account has roughly a 60-call-per-hour ceiling, so this WILL happen
+   in normal use. Falsely telling a customer to reconnect a working connection trains them
+   to ignore the banner that actually matters. Show the classification code.
+
+6. What did Meta return for expires_in on the Xento reconnect? accounts.meta_token_expires_at
+   is NULL for Xento but IS set (2026-10-26) for the other account, from the same code path.
+   So: did Meta omit expires_in for Xento, or did the callback drop it? This decides whether
+   there was ever a bug.
+
+2, 4, 5. Show the forced-190 flip to invalid, the red banner rendering, and recovery back to
+   healthy. None of these can have been demonstrated — the events table is empty.
+
+THEN PUBLISH. Yes, publish this one — token alerting in preview protects nothing, because
+the cron dispatcher that runs in production is the one that needs to report. Publishing is
+safe: LEAD_ENRICHMENT_ENABLED is "false", so no lead names are exposed. Confirm when it is
+live on adsproindia.com.

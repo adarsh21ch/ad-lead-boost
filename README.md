@@ -1,4 +1,4 @@
-# Lead Quality Sync
+# AdsPro
 
 Multi-tenant tool that pushes lead-status outcomes (Qualified / Booked / Purchased / etc.)
 back to Meta via the Conversions API (Conversion Leads), so ad delivery optimizes toward
@@ -28,6 +28,7 @@ Full spec: see the shared spec doc (architecture, audit, build plan).
 
 1. **Create a Meta App**
    - Go to developers.facebook.com → My Apps → Create App → type "Business"
+   - Name it "AdsPro India" (or reuse an existing app — see naming discussion)
    - Add products: **Facebook Login for Business**, **Marketing API**
    - Note the App ID + App Secret → put in `.env` as `META_APP_ID` / `META_APP_SECRET`
 

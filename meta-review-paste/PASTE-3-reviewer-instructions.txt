@@ -1,0 +1,65 @@
+AdsPro (https://adsproindia.com) is a lead-quality feedback tool for advertisers running
+Meta Lead Ads. Advertisers connect their own Meta ad account and Facebook Page. AdsPro
+receives their Lead Ads submissions, lets their sales team record each lead's real outcome
+(contacted, qualified, booked, purchased), and sends those outcomes back to the
+advertiser's own dataset through the Conversions API, so Meta can optimise delivery toward
+leads that actually convert rather than leads that merely fill in a form.
+
+FACEBOOK LOGIN
+Yes - Facebook Login for Business is integrated and actively used. It is the only way an
+advertiser connects their Meta assets to AdsPro. The "Connect Meta" button on the
+Dashboard starts the Facebook Login for Business flow. The returned user access token is
+encrypted at rest and used to read the advertiser's ad accounts and datasets, list their
+Pages, subscribe the selected Page to the leadgen webhook, and post conversion events.
+
+TEST LOGIN
+URL:      https://adsproindia.com/auth
+Email:    review@adsproindia.com
+Password: 88888888
+
+STEPS TO REPRODUCE
+
+1. Go to https://adsproindia.com/auth and sign in with the credentials above.
+2. You land on the Dashboard, showing a "Connect Meta" card.
+3. Type any name into the field "Workspace name (e.g. Acme Solar)". This field is required.
+4. Click "Connect Meta" and authorise with a Facebook account that has an ad account and a
+   Page. This is the Facebook Login for Business flow.
+5. Back in AdsPro, select an ad account and a dataset from the two dropdowns, then save.
+   - business_management reads the businesses and ad accounts the person already has
+     access to, so advertisers whose assets sit under a Business portfolio can complete
+     setup.
+   - ads_management reads those ad accounts and their datasets.
+6. Click "Integration" in the left sidebar.
+7. In the "Facebook Page" card, open the dropdown labelled "Choose the Page your lead ads
+   run from", select a Page, and confirm.
+   - pages_show_list populates that dropdown with the Pages the person manages.
+   - pages_read_engagement supplies the Page name displayed on the card.
+   - pages_manage_metadata subscribes the Page to the leadgen webhook
+     (POST /{page-id}/subscribed_apps with subscribed_fields=leadgen).
+   - leads_retrieval is required for that leadgen subscription to be permitted at all.
+   On success the card reads:
+   "Connected - leads from this Page will arrive automatically"
+   On failure AdsPro shows Meta's verbatim error and deliberately does not save the Page,
+   so a broken subscription can never appear connected.
+8. Still on Integration, scroll to "Send test event" and click it. Leave the optional test
+   event code blank.
+   - ads_management posts this server event to the selected dataset via the Conversions
+     API. AdsPro never creates, edits, pauses or deletes campaigns, ad sets, ads or
+     creatives, and never spends budget.
+   Meta's verbatim response appears, containing "events_received": 1.
+9. Click "Deliveries" in the left sidebar to see the delivery log with the Meta event name,
+   HTTP status, and Meta's response body.
+
+DATA HANDLING
+AdsPro stores only identifiers - the leadgen_id, form_id, ad_id and timestamp. It does not
+store lead names, email addresses or phone numbers. Meta's Conversions API accepts lead_id
+as the preferred match key for lead-ads conversions, so the full optimisation loop works
+without AdsPro holding any personal data. Lead records are retained for a maximum of
+90 days.
+
+REVOKING ACCESS
+Settings -> Meta connection -> "Disconnect Meta" unsubscribes the Page, calls
+DELETE /me/permissions to revoke every granted permission on Meta's side, and erases the
+stored access token, ad account, dataset and Page. Full account and data deletion is
+available at Settings -> Danger zone. Both paths are documented at
+https://adsproindia.com/data-deletion
