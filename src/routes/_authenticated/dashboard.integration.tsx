@@ -15,7 +15,13 @@ import { adAccountLabel } from "@/lib/ad-account-label";
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import { FacebookPageCard, type PageRow } from "@/components/facebook-page-card";
-import { ConnectionSettings } from "@/components/connection-settings";
+import {
+  AdAccountCard,
+  DatasetCard,
+  SyncHealthCard,
+  type ConnectionAccount,
+} from "@/components/connection-settings";
+import { SectionRail, type RailGroup } from "@/components/section-rail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
