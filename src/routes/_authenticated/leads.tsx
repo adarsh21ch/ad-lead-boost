@@ -182,7 +182,9 @@ function LeadsPage() {
                   <TableHead>Created</TableHead>
                   {enrichmentEnabled ? <TableHead>Name</TableHead> : null}
                   <TableHead>Campaign</TableHead>
+                  <TableHead>Ad set</TableHead>
                   <TableHead>Ad</TableHead>
+
                   <TableHead>Leadgen ID</TableHead>
                   <TableHead>Current status</TableHead>
                   <TableHead>Set status</TableHead>
