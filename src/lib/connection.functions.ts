@@ -50,9 +50,10 @@ export const validateAndSaveAdAccount = createServerFn({ method: "POST" })
     }
 
     const changed = current.meta_ad_account_id !== adAccountId;
-    const patch: Record<string, unknown> = { meta_ad_account_id: adAccountId };
     // Meta reports insights in the ad account's timezone; force a genuine re-fetch.
-    if (changed) patch["meta_ad_account_timezone"] = null;
+    const patch = changed
+      ? { meta_ad_account_id: adAccountId, meta_ad_account_timezone: null }
+      : { meta_ad_account_id: adAccountId };
 
     const { data: saved, error } = await context.supabase
       .from("accounts")
