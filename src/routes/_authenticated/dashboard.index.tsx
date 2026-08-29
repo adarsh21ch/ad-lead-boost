@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getTokenHealth } from "@/lib/token-health";
-import { adAccountPrimary, adAccountSecondary } from "@/lib/ad-account-label";
+import { adAccountPrimary } from "@/lib/ad-account-label";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard/")({

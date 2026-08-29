@@ -175,7 +175,7 @@ function SettingsPage() {
                     })}
                   />
 
-                  <Row label="Dataset" value={account?.meta_dataset_id ?? "—"} />
+                  <Row label="Pixel (dataset)" value={account?.meta_dataset_name ?? account?.meta_dataset_id ?? "—"} />
                   <Row
                     label="Page"
                     value={

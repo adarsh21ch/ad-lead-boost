@@ -160,7 +160,13 @@ function SelectAdAccountPage() {
     setSaveError(null);
     try {
       const result = await saveSelection({
-        data: { accountId, adAccountId, datasetId, adAccountName: selected?.name ?? null },
+        data: {
+          accountId,
+          adAccountId,
+          datasetId,
+          adAccountName: selected?.name ?? null,
+          datasetName: pixels.find((p) => p.id === datasetId)?.name ?? null,
+        },
       });
       if (!result.ok) {
         setSaveError(result.error);
@@ -230,7 +236,7 @@ function SelectAdAccountPage() {
               }
               expandedSlot={() => (
                 <>
-                  <p className="text-sm font-medium">Pick a dataset (pixel):</p>
+                  <p className="text-sm font-medium">Pick a pixel (dataset):</p>
                   {pixelsQuery.isPending ? (
                     <p className="text-sm text-muted-foreground">Loading datasets…</p>
                   ) : pixelError && !dismissedPixelError ? (
