@@ -12,6 +12,7 @@ import {
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import { FacebookPageCard, type PageRow } from "@/components/facebook-page-card";
+import { ConnectionSettings } from "@/components/connection-settings";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +112,8 @@ function IntegrationPage() {
   const tokenHealth = getTokenHealth(account ?? {});
   const tokenExpired = tokenHealth.state === "expired";
   const apiKey = (account?.webhook_api_key ?? "") as string;
+  const tokenState = account as { token_status?: string | null; token_invalid_since?: string | null; token_last_error?: string | null } | null | undefined;
+  const tokenInvalid = tokenState?.token_status === "invalid";
 
   const { data: storedPages } = useQuery({
     queryKey: ["meta-pages"],
@@ -198,6 +201,24 @@ Content-Type: application/json
           </p>
         </div>
 
+        {account && tokenInvalid && (
+          <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
+            <p className="font-semibold text-destructive">Your Meta connection is no longer valid.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Lead outcomes are not reaching Meta and spend data has stopped updating. Reconnect to
+              resume.
+            </p>
+            {tokenState?.token_last_error && (
+              <p className="mt-2 font-mono text-xs break-words text-muted-foreground">
+                {tokenState.token_last_error}
+              </p>
+            )}
+            <Button size="sm" className="mt-3" onClick={reconnectMeta} disabled={reconnecting}>
+              {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !ready ? (
@@ -238,6 +259,14 @@ Content-Type: application/json
               storedPages={storedPages as PageRow[] | undefined}
               onReconnect={reconnectMeta}
               reconnecting={reconnecting}
+            />
+
+            <ConnectionSettings
+              account={{
+                id: account!.id as string,
+                meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
+                meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
+              }}
             />
 
             <Card>

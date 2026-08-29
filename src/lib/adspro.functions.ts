@@ -333,7 +333,7 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("accounts")
       .select(
-        "id, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at",
+        "id, status, meta_ad_account_id, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
       )
       .order("created_at", { ascending: true })
       .limit(1);
