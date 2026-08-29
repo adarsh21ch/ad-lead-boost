@@ -214,7 +214,7 @@ function AccountBlock({
         >
           <p className="font-semibold text-destructive">Lead syncing has stopped.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your Meta connection for {account.name} is no longer valid, so lead outcomes are not
+            Your Meta connection is no longer valid, so lead outcomes are not
             reaching Meta. Reconnect to resume.
           </p>
           {brokenSince && (
@@ -252,12 +252,17 @@ function AccountBlock({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{account.name}</CardTitle>
+            <CardTitle>
+              {adAccountPrimary({
+                id: account.meta_ad_account_id,
+                name: account.meta_ad_account_name,
+              }) ?? account.name}
+            </CardTitle>
             <Badge variant={account.status === "active" ? "default" : "secondary"}>
-              {account.status}
+              {account.status === "active" ? "Connected" : account.status}
             </Badge>
           </div>
-          <CardDescription>Your connected Meta workspace</CardDescription>
+          <CardDescription>Workspace: {account.name}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {tokenStatus === "invalid" ? (
