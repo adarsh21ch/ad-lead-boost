@@ -719,7 +719,7 @@ function PerfTableRow({
 }: {
   row: PerfAggregate;
   level: PerfLevel;
-  onDrill?: () => void;
+  onDrill?: (() => void) | undefined;
 }) {
   const delivering = isDelivering(row.effectiveStatus);
   return (
