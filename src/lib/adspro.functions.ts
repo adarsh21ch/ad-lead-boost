@@ -451,7 +451,7 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("accounts")
       .select(
-        "id, name, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
+        "id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
       )
       .order("created_at", { ascending: true })
       .limit(1);
