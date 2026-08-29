@@ -1735,3 +1735,23 @@ free to check.**
    explicitly: read `ad_performance_daily` and `ad_insights_current`, do NOT recreate them.
    Show sample size and `low_sample` next to every ranking, and show `attribution_window`
    plus `snapshot_at` so revised numbers are explainable.
+
+### Session 8 — PROMPT 16 (dashboard) WRITTEN, not yet pasted
+`LOVABLE_PROMPT_16_ANALYTICS_DASHBOARD.md` — 7 tasks, 7 definition-of-done items.
+UI-only by construction: it opens by telling Lovable the tables and views already exist and
+must not be recreated, and it reads through the logged-in user's session rather than the
+service role (the views are `security_invoker`, so RLS already scopes them to the owner).
+
+Three things in it are worth keeping if the prompt is ever rewritten:
+- **The funnel is sourced from `leads`/`status_events`, NOT from `ad_performance_daily`.**
+  The view contains only ad-linked leads, and no lead is ad-linked yet, so a funnel built on
+  the view would read zero and look broken while being correct.
+- **Aggregating a date range must sum ingredients then divide** — `sum(spend)/sum(qualified)`,
+  never `avg(cost_per_qualified_lead)`. Averaging a ratio weights a ₹50 day equally with a
+  ₹5000 day. `low_sample` must be recomputed on the aggregate too.
+- **Absence is not zero.** With the warehouse empty the screen must show an empty state, not
+  a grid of zeros, and NULL ratios render as "—".
+
+Git: the repo had never been committed past the original scaffold. Everything from sessions
+2-8 is now committed on branch `phase-a-insights-warehouse` (two commits: accumulated
+history, then Phase A). There is still NO REMOTE — the repo exists on one machine only.
