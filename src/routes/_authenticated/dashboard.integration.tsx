@@ -103,10 +103,21 @@ function IntegrationPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
 
-  const { data: account, isLoading } = useQuery({
-    queryKey: ["integration-account"],
-    queryFn: () => getAccountFn(),
+  // A user may own more than one AdsPro account; render the list and let them pick.
+  const listAccountsFn = useServerFn(listMyAccounts);
+  const { data: myAccounts } = useQuery({
+    queryKey: ["my-accounts"],
+    queryFn: () => listAccountsFn(),
   });
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const activeAccountId = selectedAccountId ?? myAccounts?.[0]?.id ?? null;
+
+  const { data: account, isLoading } = useQuery({
+    queryKey: ["integration-account", activeAccountId],
+    queryFn: () => getAccountFn({ data: { accountId: activeAccountId } }),
+    enabled: myAccounts !== undefined,
+  });
+
 
   const ready = Boolean(account && account.status === "active" && account.meta_dataset_id);
   const tokenHealth = getTokenHealth(account ?? {});
