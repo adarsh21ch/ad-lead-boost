@@ -205,9 +205,14 @@ Content-Type: application/json
     }
   };
 
+  const openSection = (id: string) => {
+    if (id === "contract" || id === "zapier") setDisclosed((prev) => ({ ...prev, [id]: true }));
+  };
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Integration</h1>
           <p className="text-sm text-muted-foreground">
