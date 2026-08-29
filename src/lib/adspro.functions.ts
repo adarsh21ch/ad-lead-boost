@@ -335,11 +335,6 @@ export const sendTestEvent = createServerFn({ method: "POST" })
     return { eventId: event.id, ...result };
   });
 
-export const getIntegrationAccount = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("accounts")
 /**
  * Every AdsPro account this user owns. A user may own more than one (each with
  * its own Page, ad account and dataset), so screens render a list, not a row.
