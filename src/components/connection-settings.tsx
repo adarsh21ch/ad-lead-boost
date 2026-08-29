@@ -25,14 +25,9 @@ function relativeTime(iso: string | null | undefined): string | null {
   if (Number.isNaN(then)) return null;
   const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
   if (seconds < 60) return "just now";
-  const units: Array<[number, string]> = [
-    [60, "minute"],
-    [3600, "hour"],
-    [86400, "day"],
-  ];
-  if (seconds < 3600) return plural(Math.floor(seconds / units[0]![0]), "minute");
-  if (seconds < 86400) return plural(Math.floor(seconds / units[1]![0]), "hour");
-  return plural(Math.floor(seconds / units[2]![0]), "day");
+  if (seconds < 3600) return plural(Math.floor(seconds / 60), "minute");
+  if (seconds < 86400) return plural(Math.floor(seconds / 3600), "hour");
+  return plural(Math.floor(seconds / 86400), "day");
 }
 
 function plural(n: number, unit: string) {
