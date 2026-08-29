@@ -369,10 +369,10 @@ Content-Type: application/json
               <Section id="data">
                 <SyncHealthCard account={connectionAccount} />
               </Section>
+              <h2 className="pt-2 text-lg font-semibold tracking-tight">CRM setup</h2>
 
-
-
-
+              <Section id="webhook">
+            <Card>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Your webhook endpoint</CardTitle>
