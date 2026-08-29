@@ -2112,3 +2112,52 @@ There is no way to change the ad account from the UI; the picker runs only on fi
 Every customer who ever switches ad accounts hits this. `LOVABLE_PROMPT_17_CHANGE_AD_ACCOUNT.md`
 is written and unpasted. It carries the two non-obvious requirements the hard way:
 **do not clobber `meta_dataset_id`**, and **null `meta_ad_account_timezone` on change**.
+
+### Session 9 — SELF-SERVICE GAP: `request_insights_sync` + `insights_sync_status` shipped
+
+Adarsh's push, and it is correct: *"not every user has access to Claude Code."* Changing an ad
+account required an operator with database access. That is a bottleneck, not a feature gap.
+The DB half is now built so the UI half is unblocked.
+
+**`0009_user_triggered_sync.sql`** — applied, verified.
+- **`request_insights_sync(p_account_id, p_days)`** — the per-account "Sync now" the app can
+  call. `run_insights_sync(days)` is the CRON path: it syncs EVERY account and stays revoked
+  from `authenticated` deliberately, because exposing it would let one tenant trigger work on
+  all the others and burn the shared Meta ceiling. The new function authorises BEFORE posting:
+  ownership checked against `auth.uid()`, 60-second per-account cooldown, jsonb verdict rather
+  than an exception so the UI can show a real message. `grant execute ... to authenticated`.
+  *** It returns `queued`, never `synced` — the real outcome lands in `insights_sync_runs`
+  seconds later. A response that claimed success would be a lie the user cannot check. ***
+- **`insights_sync_status`** — latest run per account, `security_invoker`, with a
+  plain-language `verdict` column so no screen re-implements what a `meta_code` means.
+
+**`insights-sync/index.ts`** — now accepts an optional `accountId` and filters to that one
+account; absent means the cron path, unchanged. Deployed `--no-verify-jwt --use-api`.
+
+### Verified
+| Check | Evidence |
+|---|---|
+| Auth gate, no session | `{"ok":false,"reason":"forbidden"}` |
+| Auth gate, unknown account | `{"ok":false,"reason":"not_found"}` |
+| Scoped run really is scoped | posted `accountId`=Xento -> **only Xento ran** (05:59:21 `ok`); Acme Solar's latest stayed 05:54:34, untouched |
+| Status view | both accounts, verdict "Collecting normally", RLS-scoped |
+
+Note for whoever reads the run log: two Xento rows appear seconds apart at 05:59 because the
+local query wrapper re-runs a statement that returns no rows. Both are Xento; neither is Acme.
+Not a duplicate-dispatch bug.
+
+### `LOVABLE_PROMPT_17_CONNECTION_SETTINGS.md` (was ..._CHANGE_AD_ACCOUNT, widened)
+Four tasks: change ad account / dataset / page from one Connection settings section;
+**validate against Meta BEFORE saving** (a saved-but-broken ad account just makes the
+dashboard go quiet); sync health card reading `insights_sync_status` with a working
+"Sync now"; token-invalid banner with Reconnect. Carries the two traps the hard way —
+never clobber `meta_dataset_id`, always null `meta_ad_account_timezone` on change.
+
+### Still not built, deliberately named so it is not forgotten
+**The warehouse does not record WHICH Meta ad account a row came from.** `ad_entities` and
+`ad_insights_daily` are keyed by `(account_id, entity_id)` where `account_id` is the AdsPro
+account. After an ad-account switch, rows collected from the PREVIOUS Meta ad account remain
+and would render alongside the new one with nothing to distinguish them. Harmless today —
+both tables are empty — and **the cheapest moment to fix it is before they are not.** Needs a
+`meta_ad_account_id` column on both tables, threaded through `upsert_ad_entities` /
+`upsert_ad_insights` and the fetcher. Claude's job, not Lovable's.

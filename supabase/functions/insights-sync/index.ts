@@ -228,6 +228,12 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const days = Math.min(Math.max(Number(body?.days ?? 3), 1), 90);
+  // Optional single-account run. Used by the in-app "Sync now" button via
+  // public.request_insights_sync(account_id, days), which authorises the caller BEFORE
+  // posting here. Absent => the cron path, which syncs every eligible account.
+  const onlyAccountId = typeof body?.accountId === "string" && body.accountId.length > 0
+    ? body.accountId
+    : null;
   // Entity metadata (status, budgets, thumbnails) only on the wider daily run.
   const syncEntities = body?.syncEntities ?? days >= 7;
 
@@ -241,9 +247,11 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: accounts, error: accErr } = await supabase
+  let accountQuery = supabase
     .from("accounts")
     .select("id, name, meta_ad_account_id, meta_access_token_encrypted, status, token_status, meta_ad_account_timezone");
+  if (onlyAccountId) accountQuery = accountQuery.eq("id", onlyAccountId);
+  const { data: accounts, error: accErr } = await accountQuery;
 
   if (accErr) {
     return new Response(JSON.stringify({ error: accErr.message }), {
@@ -410,7 +418,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ days, since: sinceStr, until: untilStr, syncEntities, accounts: summary }),
+    JSON.stringify({ days, since: sinceStr, until: untilStr, syncEntities, scoped: onlyAccountId, accounts: summary }),
     { headers: { "content-type": "application/json" } },
   );
 });
