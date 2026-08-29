@@ -99,9 +99,8 @@ export function AdAccountCard({ account }: { account: ConnectionAccount }) {
           Change ad account
         </Button>
         <p className="text-xs text-muted-foreground">
-          Spend and performance data will now come from the new ad account. Your leads are
-          unaffected — those arrive from your connected Facebook Page, and your dataset stays as it
-          is.
+          Spend and performance data are read from this ad account. Your leads are unaffected —
+          those arrive from your Facebook Page.
         </p>
 
         <Dialog
@@ -115,7 +114,9 @@ export function AdAccountCard({ account }: { account: ConnectionAccount }) {
             <DialogHeader>
               <DialogTitle>Change ad account</DialogTitle>
               <DialogDescription>
-                Your dataset and Facebook Page are left untouched.
+                Spend and performance data will now come from the new ad account. Your leads are
+                unaffected — those arrive from your connected Facebook Page, and your dataset stays
+                as it is.
               </DialogDescription>
             </DialogHeader>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
