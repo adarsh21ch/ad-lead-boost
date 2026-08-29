@@ -152,7 +152,7 @@ const EVENTS_MANAGER_URL = "https://business.facebook.com/events_manager2/";
  * plainly instead of implying nothing is connected. The stored selection is never
  * auto-cleared: delivery keeps working through the connected pixel.
  */
-function DatasetCard({ account }: { account: ConnectionAccount }) {
+export function DatasetCard({ account }: { account: ConnectionAccount }) {
   const queryClient = useQueryClient();
   const listPixelsFn = useServerFn(listMetaPixels);
   const saveDatasetFn = useServerFn(validateAndSaveDataset);
@@ -318,7 +318,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
 
 
 /** Sync health — verdict straight from the view, "Sync now" through the RPC. */
-function SyncHealthCard({ account }: { account: ConnectionAccount }) {
+export function SyncHealthCard({ account }: { account: ConnectionAccount }) {
   const getStatusFn = useServerFn(getSyncStatus);
   const requestSyncFn = useServerFn(requestSyncNow);
   const [polling, setPolling] = useState(false);
