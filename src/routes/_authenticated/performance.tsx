@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { listMyAccounts } from "@/lib/adspro.functions";
+import { getSyncStatus } from "@/lib/connection.functions";
+
 import { AppShell } from "@/components/app-shell";
 import { AdAccountIdentityLines } from "@/components/ad-account-identity";
 import { Badge } from "@/components/ui/badge";
@@ -140,18 +142,9 @@ function PerformancePage() {
     drill.length === 0 ? "campaign" : drill.length === 1 ? "adset" : "ad";
   const parentId = drill.length > 0 ? drill[drill.length - 1]!.id : null;
 
-  const syncQuery = useQuery({
-    queryKey: ["insights-sync-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("insights_sync_runs")
-        .select("id, status, started_at, finished_at, error, meta_calls")
-        .order("started_at", { ascending: false })
-        .limit(1);
-      if (error) throw error;
-      return data?.[0] ?? null;
-    },
-  });
+  // Per-account sync status is defined below, once we know which AdsPro account
+  // rows belong to the ad account selected on this screen.
+
 
   // One row per entity per day, for exactly ONE level. Levels are never summed
   // together — campaign, adset and ad rows all count the same leads.
@@ -195,13 +188,26 @@ function PerformancePage() {
     return ids.length > 0 ? ids : null;
   }, [accountsQuery.data, activeAdAccountId]);
 
+  // Sync health for the AdsPro account behind the selected ad account, not the
+  // latest run across every account the user owns.
+  const scopedAccountId = scopedAccountIds?.[0] ?? null;
+  const getSyncStatusFn = useServerFn(getSyncStatus);
+  const syncQuery = useQuery({
+    queryKey: ["insights-sync-status", scopedAccountId],
+    queryFn: () => getSyncStatusFn({ data: { accountId: scopedAccountId! } }),
+    enabled: Boolean(scopedAccountId),
+  });
+
   const funnelQuery = useQuery({
     queryKey: ["funnel", from, to, scopedAccountIds?.join(","), drill.map((d) => d.id).join(">")],
     queryFn: async () => {
       const toExclusive = new Date(`${to}T00:00:00.000Z`);
       toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+      // lead_attribution resolves adset/campaign by walking ad_id up the synced
+      // hierarchy in SQL — leads.campaign_id / leads.adset_id are almost always
+      // NULL because Meta's webhook never sends them.
       let leadsQuery = supabase
-        .from("leads")
+        .from("lead_attribution")
         .select("id, ad_id")
         .gte("created_at", `${from}T00:00:00.000Z`)
         .lt("created_at", toExclusive.toISOString());
@@ -216,7 +222,8 @@ function PerformancePage() {
       const { data: leads, error: leadsError } = await leadsQuery.limit(5000);
       if (leadsError) throw leadsError;
 
-      const ids = (leads ?? []).map((l) => l.id);
+
+      const ids = (leads ?? []).map((l) => l.id).filter((id): id is string => Boolean(id));
       const reached = new Map<string, Set<string>>();
       for (let i = 0; i < ids.length; i += 200) {
         const chunk = ids.slice(i, i + 200);
@@ -324,9 +331,11 @@ function PerformancePage() {
           <p className="text-xs text-muted-foreground">Ad data has not synced yet.</p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Ad data last updated {relativeTime(sync.finished_at ?? sync.started_at) ?? "recently"}.
+            {sync.verdict ? `${sync.verdict} · ` : ""}Ad data last updated{" "}
+            {relativeTime(sync.finished_at ?? sync.started_at) ?? "recently"}.
           </p>
         )}
+
 
         {/* Ad account: a label when there is one, a real selector when there are many */}
         {adAccounts.length > 0 && (

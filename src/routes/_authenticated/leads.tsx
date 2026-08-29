@@ -182,7 +182,9 @@ function LeadsPage() {
                   <TableHead>Created</TableHead>
                   {enrichmentEnabled ? <TableHead>Name</TableHead> : null}
                   <TableHead>Campaign</TableHead>
+                  <TableHead>Ad set</TableHead>
                   <TableHead>Ad</TableHead>
+
                   <TableHead>Leadgen ID</TableHead>
                   <TableHead>Current status</TableHead>
                   <TableHead>Set status</TableHead>
@@ -212,8 +214,12 @@ function LeadsPage() {
                       {lead.campaign_name || lead.campaign_id || "—"}
                     </TableCell>
                     <TableCell className="max-w-[160px] truncate text-sm">
+                      {lead.adset_name || lead.adset_id || "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate text-sm">
                       {lead.ad_name || lead.ad_id || "—"}
                     </TableCell>
+
                     <TableCell className="max-w-[140px] truncate font-mono text-[11px] text-muted-foreground">
                       {lead.meta_leadgen_id ?? "—"}
                     </TableCell>

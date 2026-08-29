@@ -537,6 +537,13 @@ export type Database = {
             foreignKeyName: "status_events_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "lead_attribution"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -686,6 +693,33 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "insights_sync_runs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_attribution: {
+        Row: {
+          account_id: string | null
+          ad_id: string | null
+          ad_name: string | null
+          adset_id: string | null
+          adset_id_derived: boolean | null
+          adset_name: string | null
+          campaign_id: string | null
+          campaign_id_derived: boolean | null
+          campaign_name: string | null
+          created_at: string | null
+          enrichment_status: string | null
+          full_name: string | null
+          id: string | null
+          is_test: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
