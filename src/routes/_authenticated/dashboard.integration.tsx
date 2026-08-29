@@ -474,14 +474,17 @@ Content-Type: application/json
                     <code>400</code> bad status value
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+                  </div>
+                </Disclosure>
+              </Section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Set up with Zapier</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <Section id="zapier">
+                <Disclosure
+                  title="Set up with Zapier — 7 steps"
+                  open={disclosed.zapier}
+                  onToggle={() => setDisclosed((p) => ({ ...p, zapier: !p.zapier }))}
+                >
+                  <div className="space-y-4">
                 <ol className="list-decimal space-y-2 pl-5 text-sm">
                   <li>
                     In Zapier, create a Zap. Trigger = your CRM (e.g. "Deal stage changed" in
