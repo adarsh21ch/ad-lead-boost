@@ -101,9 +101,15 @@ export const validateAndSaveDataset = createServerFn({ method: "POST" })
     const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    let datasetName: string | null = null;
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-      await graphGet(`${graphUrl(data.datasetId)}?fields=id,name`, token, data.datasetId);
+      const res = await graphGet<{ id: string; name?: string | null }>(
+        `${graphUrl(data.datasetId)}?fields=id,name`,
+        token,
+        data.datasetId,
+      );
+      datasetName = res?.name ?? null;
       await reportTokenHealth(data.accountId, "ok", "adaccounts");
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
@@ -114,15 +120,16 @@ export const validateAndSaveDataset = createServerFn({ method: "POST" })
 
     const { data: saved, error } = await context.supabase
       .from("accounts")
-      .update({ meta_dataset_id: data.datasetId })
+      .update({ meta_dataset_id: data.datasetId, meta_dataset_name: datasetName })
       .eq("id", data.accountId)
-      .select("id, meta_ad_account_id, meta_dataset_id")
+      .select("id, meta_ad_account_id, meta_dataset_id, meta_dataset_name")
       .maybeSingle();
     if (error) return { ok: false as const, error: { message: error.message, code: null } };
     if (!saved) {
       return { ok: false as const, error: { message: "No owned account was updated.", code: null } };
     }
     return { ok: true as const, account: saved };
+
   });
 
 /** One row per owned account from public.insights_sync_status (security_invoker view). */
