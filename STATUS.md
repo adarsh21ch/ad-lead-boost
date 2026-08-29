@@ -1861,3 +1861,41 @@ the old pattern. Claude verified from the DB instead: 10 tables, 2 views, 8 poli
 jobs, `ad_performance_daily` still 36 columns — **all identical, no DDL**. `leads` still
 3 / 1 named / 0 with ad_id, so no enrichment ran and the flag is still effectively off.
 8 sync runs, 0 failed, both tokens healthy, warehouse still 0 rows (correct — no ad spend).
+
+## Session 8 — PRODUCT IDEA: AdsPro as the customer's marketing department (Adarsh, 2026-08-29)
+
+Adarsh's idea, recorded before it is lost: let customers who do not know how to run ads use
+AdsPro to run them — AdsPro suggests the campaign type, the targeting, the creative, and
+eventually executes and manages the campaign on their behalf. "AdsPro becomes their
+marketing department."
+
+**Most of this is already the planned endgame, not new scope.** It maps almost exactly onto
+ANALYTICS_ROADMAP.md:
+- **Phase D (AI advisor)** — already specifies pattern-spotting across creatives, weekly
+  digests, recommendations with reasoning shown, explicit uncertainty. That IS the
+  "what should I run" half.
+- **Phase E (Actions)** — already specifies the exact escalation: recommend only →
+  one-click apply (pause / scale budget / duplicate winner) → true automation behind
+  per-account opt-in, with spend+conversion thresholds, full audit log, one-click undo and
+  a hard daily cap. `ads_management` is already granted, so the write path exists.
+
+**The genuinely NEW part is creative** — suggesting or generating the ad image/video and
+copy. Nothing in the roadmap covers that today. Worth adding to Phase D when it is built.
+
+Three caveats to carry forward, so this is not mis-sold later:
+1. Phase E's own rule stands: **never skip to full automation.** "An automated bad call on a
+   client's account is a relationship, not a bug."
+2. Running ads on OTHER businesses' ad accounts is an App Review question, not just a build
+   question. Adarsh's own accounts need nothing extra; customers' accounts will.
+3. It is gated on Phases A and B being real, which they now are, and on Phase D existing.
+   Sequence unchanged: get spend + outcome data flowing first, or the advisor is guessing.
+
+### Which product to advertise for the item-1 test ad
+Recommendation given: **Academy OS**, and **one product only**, not several. Gym/academy/
+coaching owners are the cheapest and most precisely targetable audience of the options, so
+the same ₹150/day buys more leads, which is a better test of the pipeline. It also matches
+the stated "100 tenants" goal, so the spend is pipeline rather than test cost.
+Nevorai/nFlow is the fallback (proven cheap audience). Enarsia was considered and set aside:
+"businesses with field teams" is a much fuzzier Meta audience than "gym owner", so leads
+cost more and arrive slower — bad properties for a pipeline test. Add it as a second
+campaign later, after the pipe is proven, never as a budget split during the test.
