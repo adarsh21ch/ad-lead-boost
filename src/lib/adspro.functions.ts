@@ -177,11 +177,13 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    // Meta reports insights in the ad account's timezone; null it so the fetcher re-reads it.
     const { data: saved, error } = await context.supabase
       .from("accounts")
       .update({
         meta_ad_account_id: adAccountId,
         meta_dataset_id: data.datasetId,
+        meta_ad_account_timezone: null,
         status: "active",
       })
       .eq("id", data.accountId)
@@ -331,7 +333,7 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("accounts")
       .select(
-        "id, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at",
+        "id, status, meta_ad_account_id, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
       )
       .order("created_at", { ascending: true })
       .limit(1);
