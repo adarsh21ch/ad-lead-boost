@@ -674,7 +674,10 @@ Content-Type: application/json
                 )}
               </CardContent>
             </Card>
-          </>
+              </Section>
+            </div>
+          </div>
+
         )}
       </div>
     </AppShell>
