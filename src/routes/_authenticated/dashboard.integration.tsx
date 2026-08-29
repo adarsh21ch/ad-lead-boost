@@ -244,6 +244,8 @@ Content-Type: application/json
           </Card>
         ) : (
           <>
+            <h2 className="pt-2 text-lg font-semibold tracking-tight">Connection settings</h2>
+
             <FacebookPageCard
               account={{
                 meta_page_id: (account as { meta_page_id?: string | null }).meta_page_id ?? null,
