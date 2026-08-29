@@ -104,12 +104,8 @@ export const validateAndSaveDataset = createServerFn({ method: "POST" })
     let datasetName: string | null = null;
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-      const res = await graphGet<{ id: string; name?: string | null }>(
-        `${graphUrl(data.datasetId)}?fields=id,name`,
-        token,
-        data.datasetId,
-      );
-      datasetName = res?.name ?? null;
+      const res = await graphGet(`${graphUrl(data.datasetId)}?fields=id,name`, token, data.datasetId);
+      datasetName = (res as { name?: string | null }).name ?? null;
       await reportTokenHealth(data.accountId, "ok", "adaccounts");
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
