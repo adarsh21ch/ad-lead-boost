@@ -1849,3 +1849,15 @@ insights row exists.
 Two things the screenshot incidentally CONFIRMED, both good: RLS scoping works (the signed-in
 Xento owner sees 2 leads, not the 3 in the database — Acme Solar's is correctly invisible),
 and "ever reached" dedup works (5 `qualified` status_events across 2 leads renders as 2).
+
+### Session 8 — funnel percentage bug FIXED and verified (2026-08-29)
+Live: `Leads 2 · Contacted 1 (50% of leads) · Qualified 2 (100% of leads) · Booked 0 (0%) ·
+Purchased 0 (0%)`. No percentage on Leads. Dash-only provenance footer hidden when there are
+no insights rows. The "200% of previous step" absurdity is gone. **The open-bug entry above
+is CLOSED.**
+
+Lovable replied "Build passed" and did NOT answer the two confirmations it was asked for —
+the old pattern. Claude verified from the DB instead: 10 tables, 2 views, 8 policies, 5 cron
+jobs, `ad_performance_daily` still 36 columns — **all identical, no DDL**. `leads` still
+3 / 1 named / 0 with ad_id, so no enrichment ran and the flag is still effectively off.
+8 sync runs, 0 failed, both tokens healthy, warehouse still 0 rows (correct — no ad spend).
