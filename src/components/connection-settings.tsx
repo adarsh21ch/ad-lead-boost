@@ -120,7 +120,6 @@ function AdAccountCard({ account }: { account: ConnectionAccount }) {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <AdAccountList
               accountId={account.id}
-              currentId={account.meta_ad_account_id ?? null}
               actionSlot={(option) => (
                 <Button
                   size="sm"
