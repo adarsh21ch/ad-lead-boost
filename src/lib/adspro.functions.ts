@@ -242,8 +242,34 @@ export const listLeads = createServerFn({ method: "GET" })
       enrichment_error?: string | null;
     }>;
     const leadIds = rows.map((l) => l.id);
+    // Names + resolved hierarchy come from the security_invoker view, which
+    // walks ad_id up the synced hierarchy in SQL. No walk is done here.
+    const attribution = new Map<
+      string,
+      {
+        campaign_id: string | null;
+        campaign_name: string | null;
+        adset_id: string | null;
+        adset_name: string | null;
+        ad_name: string | null;
+      }
+    >();
     let events: Array<{ lead_id: string; status: string; created_at: string }> = [];
     if (leadIds.length) {
+      const { data: attr } = await context.supabase
+        .from("lead_attribution")
+        .select("id, campaign_id, campaign_name, adset_id, adset_name, ad_name")
+        .in("id", leadIds);
+      for (const a of attr ?? []) {
+        if (!a.id) continue;
+        attribution.set(a.id, {
+          campaign_id: a.campaign_id ?? null,
+          campaign_name: a.campaign_name ?? null,
+          adset_id: a.adset_id ?? null,
+          adset_name: a.adset_name ?? null,
+          ad_name: a.ad_name ?? null,
+        });
+      }
       const { data: ev } = await context.supabase
         .from("status_events")
         .select("lead_id, status, created_at")
@@ -255,9 +281,21 @@ export const listLeads = createServerFn({ method: "GET" })
     for (const e of events) if (!latest.has(e.lead_id)) latest.set(e.lead_id, e.status);
     return {
       enrichmentEnabled,
-      leads: rows.map((l) => ({ ...l, latest_status: latest.get(l.id) ?? null })),
+      leads: rows.map((l) => {
+        const attr = attribution.get(l.id);
+        return {
+          ...l,
+          campaign_id: attr?.campaign_id ?? l.campaign_id ?? null,
+          campaign_name: attr?.campaign_name ?? l.campaign_name ?? null,
+          adset_id: attr?.adset_id ?? null,
+          adset_name: attr?.adset_name ?? null,
+          ad_name: attr?.ad_name ?? l.ad_name ?? null,
+          latest_status: latest.get(l.id) ?? null,
+        };
+      }),
     };
   });
+
 
 export const setLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
