@@ -9,7 +9,7 @@ import {
   validateAndSaveDataset,
 } from "@/lib/connection.functions";
 import { metaErrorCopy } from "@/lib/meta-error-copy";
-import { adAccountLabel } from "@/lib/ad-account-label";
+import { adAccountLabel, adAccountPrimary } from "@/lib/ad-account-label";
 import { AdAccountIdentityLines } from "@/components/ad-account-identity";
 import { AdAccountList } from "@/components/ad-account-list";
 import { Button } from "@/components/ui/button";
@@ -143,7 +143,14 @@ function AdAccountCard({ account }: { account: ConnectionAccount }) {
 }
 
 
-/** Dataset — lists datasets on the connected ad account and saves only the dataset. */
+const EVENTS_MANAGER_URL = "https://business.facebook.com/events_manager2/";
+
+/**
+ * Pixel (dataset) — always states what is currently connected, and when the stored
+ * dataset is not among the datasets available on this ad account's business, says so
+ * plainly instead of implying nothing is connected. The stored selection is never
+ * auto-cleared: delivery keeps working through the connected pixel.
+ */
 function DatasetCard({ account }: { account: ConnectionAccount }) {
   const queryClient = useQueryClient();
   const listPixelsFn = useServerFn(listMetaPixels);
@@ -158,12 +165,24 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
       listPixelsFn({
         data: { accountId: account.id, adAccountId: account.meta_ad_account_id! },
       }),
-    enabled: open && Boolean(account.meta_ad_account_id),
+    enabled: Boolean(account.meta_ad_account_id),
     retry: false,
   });
 
   const datasets = pixelsQuery.data?.ok ? pixelsQuery.data.data : [];
   const listError = pixelsQuery.data && !pixelsQuery.data.ok ? pixelsQuery.data.error : null;
+
+  const connectedName = account.meta_dataset_name?.trim() || null;
+  const connectedId = account.meta_dataset_id?.trim() || null;
+  const adAccountName =
+    adAccountPrimary({ id: account.meta_ad_account_id, name: account.meta_ad_account_name }) ??
+    "this ad account";
+
+  // Mismatch: something is connected, the list loaded cleanly, and the stored id is
+  // not offered by this ad account's business.
+  const listLoaded = Boolean(pixelsQuery.data?.ok);
+  const mismatch =
+    Boolean(connectedId) && listLoaded && !datasets.some((d) => d.id === connectedId);
 
   const save = async (datasetId: string) => {
     setSaving(datasetId);
@@ -178,6 +197,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
       setOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
       await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-accounts"] });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the dataset");
     } finally {
@@ -192,7 +212,44 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
         <CardDescription>Where Conversions API events are delivered.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm font-medium">{account.meta_dataset_name ?? (account.meta_dataset_id ? "Selected" : "Not set")}</p>
+        {/* Always show what is connected — name first, id second, never a bare "Selected". */}
+        {connectedName || connectedId ? (
+          <div>
+            <p className="text-sm font-medium">{connectedName ?? connectedId}</p>
+            {connectedName && connectedId ? (
+              <p className="font-mono text-xs text-muted-foreground">{connectedId}</p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm font-medium">Not set</p>
+        )}
+
+        {mismatch ? (
+          <div className="rounded-md border border-amber-500/60 bg-amber-500/10 p-3 text-sm">
+            <p className="font-semibold">
+              This pixel belongs to a different business than your ad account.
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Events are still being delivered to {connectedName ?? connectedId}, so your data is
+              not lost. But Meta will not use them to optimise ads in {adAccountName}, because a
+              pixel only influences ad accounts in its own business.
+            </p>
+            <p className="mt-2 text-muted-foreground">
+              <span className="font-semibold text-foreground">To fix:</span> create a dataset in
+              this ad account's Business portfolio in{" "}
+              <a
+                className="underline"
+                href={EVENTS_MANAGER_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Events Manager
+              </a>
+              , or share the existing one with it — then select it here.
+            </p>
+          </div>
+        ) : null}
+
         {!open ? (
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
             Change dataset
@@ -204,9 +261,25 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
             ) : listError ? (
               <p className="text-sm text-destructive">{metaErrorCopy(listError)}</p>
             ) : datasets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No datasets found on this ad account or its Business portfolio.
-              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>
+                  No datasets are available on {adAccountName} or its Business portfolio, so there
+                  is nothing to choose from here yet.
+                </p>
+                <p>
+                  Create one in{" "}
+                  <a
+                    className="underline"
+                    href={EVENTS_MANAGER_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Events Manager
+                  </a>{" "}
+                  (or share an existing dataset with this ad account's business), then come back
+                  and select it.
+                </p>
+              </div>
             ) : (
               datasets.map((dataset) => (
                 <div
@@ -214,7 +287,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
                   className="flex items-center justify-between gap-4 rounded-md border px-3 py-2"
                 >
                   <div>
-                    <p className="text-sm font-medium">{dataset.name}</p>
+                    <p className="text-sm font-medium">{dataset.name ?? dataset.id}</p>
                     <p className="font-mono text-xs text-muted-foreground">{dataset.id}</p>
                   </div>
                   <Button
@@ -241,6 +314,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
     </Card>
   );
 }
+
 
 /** Sync health — verdict straight from the view, "Sync now" through the RPC. */
 function SyncHealthCard({ account }: { account: ConnectionAccount }) {
