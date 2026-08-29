@@ -21,7 +21,7 @@ import {
   SyncHealthCard,
   type ConnectionAccount,
 } from "@/components/connection-settings";
-import { SectionRail, type RailItem } from "@/components/section-rail";
+import { SectionRail, RailSpacer, type RailItem } from "@/components/section-rail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
