@@ -169,7 +169,12 @@ export const listMetaPixels = createServerFn({ method: "GET" })
 
 export const saveAdAccountSelection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { accountId: string; adAccountId: string; datasetId: string }) => {
+  .inputValidator((data: {
+    accountId: string;
+    adAccountId: string;
+    datasetId: string;
+    adAccountName?: string | null;
+  }) => {
     if (!data?.accountId || !data?.adAccountId || !data?.datasetId) {
       throw new Error("accountId, adAccountId and datasetId are required");
     }
@@ -177,19 +182,22 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    const adAccountName = data.adAccountName?.trim() || null;
     // Meta reports insights in the ad account's timezone; null it so the fetcher re-reads it.
     const { data: saved, error } = await context.supabase
       .from("accounts")
       .update({
         meta_ad_account_id: adAccountId,
+        meta_ad_account_name: adAccountName,
         meta_dataset_id: data.datasetId,
         meta_ad_account_timezone: null,
         status: "active",
       })
       .eq("id", data.accountId)
       .eq("owner_user_id", context.userId)
-      .select("id, meta_ad_account_id, meta_dataset_id")
+      .select("id, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
       .maybeSingle();
+
     if (error) {
       console.error("[select-ad-account] database save failed", error);
       return { ok: false as const, error: error.message };
