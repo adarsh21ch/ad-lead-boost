@@ -20,6 +20,7 @@ export type Database = {
           id: string
           meta_access_token_encrypted: string | null
           meta_ad_account_id: string | null
+          meta_ad_account_name: string | null
           meta_ad_account_timezone: string | null
           meta_dataset_id: string | null
           meta_page_id: string | null
@@ -42,6 +43,7 @@ export type Database = {
           id?: string
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
+          meta_ad_account_name?: string | null
           meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
           meta_page_id?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           id?: string
           meta_access_token_encrypted?: string | null
           meta_ad_account_id?: string | null
+          meta_ad_account_name?: string | null
           meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
           meta_page_id?: string | null
@@ -95,6 +98,7 @@ export type Database = {
           last_synced_at: string
           level: string
           lifetime_budget: number | null
+          meta_ad_account_id: string | null
           name: string | null
           objective: string | null
           optimization_goal: string | null
@@ -112,6 +116,7 @@ export type Database = {
           last_synced_at?: string
           level: string
           lifetime_budget?: number | null
+          meta_ad_account_id?: string | null
           name?: string | null
           objective?: string | null
           optimization_goal?: string | null
@@ -129,6 +134,7 @@ export type Database = {
           last_synced_at?: string
           level?: string
           lifetime_budget?: number | null
+          meta_ad_account_id?: string | null
           name?: string | null
           objective?: string | null
           optimization_goal?: string | null
@@ -160,6 +166,7 @@ export type Database = {
           impressions: number | null
           last_seen_at: string
           level: string
+          meta_ad_account_id: string | null
           meta_leads: number | null
           reach: number | null
           snapshot_at: string
@@ -181,6 +188,7 @@ export type Database = {
           impressions?: number | null
           last_seen_at?: string
           level: string
+          meta_ad_account_id?: string | null
           meta_leads?: number | null
           reach?: number | null
           snapshot_at?: string
@@ -202,6 +210,7 @@ export type Database = {
           impressions?: number | null
           last_seen_at?: string
           level?: string
+          meta_ad_account_id?: string | null
           meta_leads?: number | null
           reach?: number | null
           snapshot_at?: string
@@ -591,6 +600,7 @@ export type Database = {
           impressions: number | null
           last_seen_at: string | null
           level: string | null
+          meta_ad_account_id: string | null
           meta_leads: number | null
           reach: number | null
           snapshot_at: string | null
@@ -636,6 +646,8 @@ export type Database = {
           lead_delivery_gap: number | null
           level: string | null
           low_sample: boolean | null
+          meta_ad_account_id: string | null
+          meta_ad_account_name: string | null
           meta_leads: number | null
           no_show: number | null
           parent_id: string | null
