@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { listMyAccounts } from "@/lib/adspro.functions";
 import { AppShell } from "@/components/app-shell";
+import { AdAccountIdentityLines } from "@/components/ad-account-identity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { adAccountPrimary } from "@/lib/ad-account-label";
 import {
   aggregateRows,
   daysAgo,
@@ -57,13 +61,28 @@ type SortKey =
   | "purchased"
   | "costPerPurchase";
 
+/** An entity the user has drilled into. */
+type DrillNode = { level: "campaign" | "adset"; id: string; name: string };
+
+/** Anything not in one of these is not currently putting money in front of people. */
+const DELIVERING = new Set(["ACTIVE", "IN_PROCESS", "PENDING_REVIEW", "PREAPPROVED"]);
+const isDelivering = (status: string | null) =>
+  !status || DELIVERING.has(status.toUpperCase());
+
+const LEVEL_LABEL: Record<PerfLevel, string> = {
+  campaign: "Campaigns",
+  adset: "Ad sets",
+  ad: "Ads",
+};
+
 function PerformancePage() {
   const [preset, setPreset] = useState<"7" | "28" | "custom">("7");
   const [customFrom, setCustomFrom] = useState(toDateInput(daysAgo(7)));
   const [customTo, setCustomTo] = useState(toDateInput(new Date()));
-  const [level, setLevel] = useState<PerfLevel>("campaign");
   const [sortKey, setSortKey] = useState<SortKey>("spend");
   const [sortDesc, setSortDesc] = useState(true);
+  const [chosenAdAccount, setChosenAdAccount] = useState<string | null>(null);
+  const [drill, setDrill] = useState<DrillNode[]>([]);
 
   const { from, to } = useMemo(() => {
     if (preset === "custom") return { from: customFrom, to: customTo };
@@ -71,7 +90,56 @@ function PerformancePage() {
     return { from: toDateInput(daysAgo(days)), to: toDateInput(new Date()) };
   }, [preset, customFrom, customTo]);
 
-  // Sync health — newest row of insights_sync_runs (RLS-scoped to this user).
+  // Every AdsPro account this user owns — a user may own more than one.
+  const listAccountsFn = useServerFn(listMyAccounts);
+  const accountsQuery = useQuery({
+    queryKey: ["my-accounts"],
+    queryFn: () => listAccountsFn(),
+  });
+
+  // Which Meta ad accounts actually appear in the warehouse (spend side).
+  const adAccountsQuery = useQuery({
+    queryKey: ["perf-ad-accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ad_performance_daily")
+        .select("meta_ad_account_id, meta_ad_account_name")
+        .limit(5000);
+      if (error) throw error;
+      const seen = new Map<string, { id: string; name: string | null }>();
+      for (const row of data ?? []) {
+        if (!row.meta_ad_account_id) continue;
+        const existing = seen.get(row.meta_ad_account_id);
+        if (!existing || (!existing.name && row.meta_ad_account_name)) {
+          seen.set(row.meta_ad_account_id, {
+            id: row.meta_ad_account_id,
+            name: row.meta_ad_account_name ?? null,
+          });
+        }
+      }
+      return [...seen.values()].sort((a, b) =>
+        (adAccountPrimary(a) ?? "").localeCompare(adAccountPrimary(b) ?? ""),
+      );
+    },
+  });
+
+  const adAccounts = adAccountsQuery.data ?? [];
+  // With one ad account there is nothing to choose; it is a label, not a control.
+  const activeAdAccountId =
+    adAccounts.length === 0
+      ? null
+      : adAccounts.length === 1
+        ? adAccounts[0]!.id
+        : (chosenAdAccount ?? adAccounts[0]!.id);
+  const activeAdAccount = adAccounts.find((a) => a.id === activeAdAccountId) ?? null;
+
+  // Switching ad account invalidates any drill path built inside the previous one.
+  useEffect(() => setDrill([]), [activeAdAccountId]);
+
+  const level: PerfLevel =
+    drill.length === 0 ? "campaign" : drill.length === 1 ? "adset" : "ad";
+  const parentId = drill.length > 0 ? drill[drill.length - 1]!.id : null;
+
   const syncQuery = useQuery({
     queryKey: ["insights-sync-latest"],
     queryFn: async () => {
@@ -85,24 +153,25 @@ function PerformancePage() {
     },
   });
 
-  // The warehouse view: one row per entity per day, for the selected level+range.
+  // One row per entity per day, for exactly ONE level. Levels are never summed
+  // together — campaign, adset and ad rows all count the same leads.
   const perfQuery = useQuery({
-    queryKey: ["ad-performance-daily", level, from, to],
+    queryKey: ["ad-performance-daily", level, parentId, activeAdAccountId, from, to],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("ad_performance_daily")
         .select("*")
         .eq("level", level)
         .gte("stat_date", from)
-        .lte("stat_date", to)
-        .order("stat_date", { ascending: false })
-        .limit(5000);
+        .lte("stat_date", to);
+      if (activeAdAccountId) query = query.eq("meta_ad_account_id", activeAdAccountId);
+      if (parentId) query = query.eq("parent_id", parentId);
+      const { data, error } = await query.order("stat_date", { ascending: false }).limit(5000);
       if (error) throw error;
       return (data ?? []) as PerfRow[];
     },
   });
 
-  // Does ANY insights row exist at all (independent of the date range)?
   const anyInsightsQuery = useQuery({
     queryKey: ["ad-insights-any"],
     queryFn: async () => {
@@ -116,19 +185,35 @@ function PerformancePage() {
     },
   });
 
-  // Funnel: leads + status_events directly, NOT the view (the view only holds
-  // ad-linked leads, and unlinked leads would make the funnel read zero).
+  // AdsPro account rows wired to the selected Meta ad account — used to scope the
+  // funnel, which is counted from leads/status_events rather than the warehouse.
+  const scopedAccountIds = useMemo(() => {
+    if (!activeAdAccountId) return null;
+    const ids = (accountsQuery.data ?? [])
+      .filter((a) => a.meta_ad_account_id === activeAdAccountId)
+      .map((a) => a.id);
+    return ids.length > 0 ? ids : null;
+  }, [accountsQuery.data, activeAdAccountId]);
+
   const funnelQuery = useQuery({
-    queryKey: ["funnel", from, to],
+    queryKey: ["funnel", from, to, scopedAccountIds?.join(","), drill.map((d) => d.id).join(">")],
     queryFn: async () => {
       const toExclusive = new Date(`${to}T00:00:00.000Z`);
       toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
-      const { data: leads, error: leadsError } = await supabase
+      let leadsQuery = supabase
         .from("leads")
         .select("id, ad_id")
         .gte("created_at", `${from}T00:00:00.000Z`)
-        .lt("created_at", toExclusive.toISOString())
-        .limit(5000);
+        .lt("created_at", toExclusive.toISOString());
+      if (scopedAccountIds) leadsQuery = leadsQuery.in("account_id", scopedAccountIds);
+      const deepest = drill[drill.length - 1];
+      if (deepest) {
+        leadsQuery =
+          deepest.level === "campaign"
+            ? leadsQuery.eq("campaign_id", deepest.id)
+            : leadsQuery.eq("adset_id", deepest.id);
+      }
+      const { data: leads, error: leadsError } = await leadsQuery.limit(5000);
       if (leadsError) throw leadsError;
 
       const ids = (leads ?? []).map((l) => l.id);
@@ -159,6 +244,8 @@ function PerformancePage() {
     },
   });
 
+  // Sum the ingredients across the range, then divide once. low_sample is
+  // recomputed on the aggregate, never inherited from a single day.
   const aggregates = useMemo(() => aggregateRows(perfQuery.data ?? []), [perfQuery.data]);
   const totals = useMemo(() => totalsFromAggregates(aggregates), [aggregates]);
 
@@ -187,6 +274,11 @@ function PerformancePage() {
     }
   };
 
+  const drillInto = (row: PerfAggregate) => {
+    if (level === "ad") return;
+    setDrill((path) => [...path, { level, id: row.entityId, name: row.name }]);
+  };
+
   const sync = syncQuery.data;
   const provenance = perfQuery.data?.[0] ?? null;
   const attributionWindow =
@@ -212,7 +304,7 @@ function PerformancePage() {
           </p>
         </div>
 
-        {/* TASK 1 — sync health strip */}
+        {/* Sync health strip */}
         {syncQuery.isLoading ? (
           <p className="text-xs text-muted-foreground">Checking ad data sync…</p>
         ) : syncFailing ? (
@@ -236,7 +328,38 @@ function PerformancePage() {
           </p>
         )}
 
-        {/* TASK 2 — date range */}
+        {/* Ad account: a label when there is one, a real selector when there are many */}
+        {adAccounts.length > 0 && (
+          <div className="rounded-md border p-4">
+            <p className="text-xs text-muted-foreground">Ad account</p>
+            {adAccounts.length === 1 ? (
+              <AdAccountIdentityLines
+                className="mt-1"
+                id={activeAdAccount?.id}
+                name={activeAdAccount?.name}
+              />
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {adAccounts.map((option) => (
+                  <Button
+                    key={option.id}
+                    size="sm"
+                    variant={option.id === activeAdAccountId ? "default" : "outline"}
+                    onClick={() => setChosenAdAccount(option.id)}
+                    className="h-auto flex-col items-start py-2"
+                  >
+                    <span className="text-sm font-medium">{adAccountPrimary(option)}</span>
+                    {option.name ? (
+                      <span className="font-mono text-[10px] opacity-70">{option.id}</span>
+                    ) : null}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Date range */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
@@ -282,7 +405,7 @@ function PerformancePage() {
           )}
         </div>
 
-        {/* TASK 4 — summary tiles */}
+        {/* Summary tiles */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Tile label="Spend" value={formatMoney(totals.spend || null, totals.currency)} />
           <Tile label="Leads" value={formatNumber(funnelQuery.data?.total ?? null)} />
@@ -293,7 +416,7 @@ function PerformancePage() {
           />
         </div>
 
-        {/* TASK 3 — funnel */}
+        {/* Funnel */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Lead funnel</CardTitle>
@@ -345,20 +468,54 @@ function PerformancePage() {
           </CardContent>
         </Card>
 
-        {/* TASK 5 — the table */}
+        {/* Drill-down */}
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {(["campaign", "adset", "ad"] as const).map((l) => (
-              <Button
-                key={l}
-                size="sm"
-                variant={level === l ? "default" : "outline"}
-                onClick={() => setLevel(l)}
-              >
-                {l === "campaign" ? "Campaign" : l === "adset" ? "Ad Set" : "Ad"}
-              </Button>
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setDrill([])}
+              className={cn(
+                "rounded px-1 hover:text-foreground",
+                drill.length === 0 ? "font-semibold text-foreground" : "text-muted-foreground",
+              )}
+            >
+              All campaigns
+            </button>
+            {drill.map((node, i) => (
+              <span key={node.id} className="flex items-center gap-1">
+                <span aria-hidden className="text-muted-foreground">
+                  /
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDrill((path) => path.slice(0, i + 1))}
+                  className={cn(
+                    "max-w-[220px] truncate rounded px-1 hover:text-foreground",
+                    i === drill.length - 1
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {node.name}
+                </button>
+              </span>
             ))}
-          </div>
+            {drill.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+                onClick={() => setDrill((path) => path.slice(0, -1))}
+              >
+                ← Up one level
+              </Button>
+            )}
+          </nav>
+
+          <p className="text-xs text-muted-foreground">
+            Showing {LEVEL_LABEL[level].toLowerCase()}
+            {level !== "ad" ? " — click a row to drill in." : "."}
+          </p>
 
           {perfQuery.isLoading || anyInsightsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading ad data…</p>
@@ -379,8 +536,17 @@ function PerformancePage() {
             </div>
           ) : !rangeHasRows ? (
             <div className="rounded-md border p-6 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">No ad data in this date range</p>
-              <p className="mt-1">Widen the range — there is data outside it.</p>
+              <p className="font-medium text-foreground">
+                No spend recorded for the selected period
+              </p>
+              <p className="mt-1">
+                Performance rows only exist where Meta reported spend
+                {activeAdAccount
+                  ? ` for ${adAccountPrimary(activeAdAccount)}`
+                  : ""}
+                {drill.length > 0 ? ` under ${drill[drill.length - 1]!.name}` : ""}. Widen the date
+                range, or check that these ads are delivering.
+              </p>
             </div>
           ) : (
             <>
@@ -394,7 +560,7 @@ function PerformancePage() {
                   <TableHeader>
                     <TableRow>
                       <SortHeader
-                        label="Name"
+                        label={LEVEL_LABEL[level]}
                         col="name"
                         sortKey={sortKey}
                         sortDesc={sortDesc}
@@ -463,7 +629,12 @@ function PerformancePage() {
                   </TableHeader>
                   <TableBody>
                     {sorted.map((row) => (
-                      <PerfTableRow key={row.entityId} row={row} level={level} />
+                      <PerfTableRow
+                        key={row.entityId}
+                        row={row}
+                        level={level}
+                        onDrill={level === "ad" ? undefined : () => drillInto(row)}
+                      />
                     ))}
                   </TableBody>
                 </Table>
@@ -472,7 +643,7 @@ function PerformancePage() {
           )}
         </div>
 
-        {/* TASK 6 — provenance footer */}
+        {/* Provenance footer */}
         {hasAnyInsights && (
           <p className="border-t pt-4 text-xs text-muted-foreground">
             Attribution: {attributionWindow ?? "—"} · Meta revises these figures for up to 28 days ·
@@ -541,24 +712,53 @@ function SortHeader({
   );
 }
 
-function PerfTableRow({ row, level }: { row: PerfAggregate; level: PerfLevel }) {
+function PerfTableRow({
+  row,
+  level,
+  onDrill,
+}: {
+  row: PerfAggregate;
+  level: PerfLevel;
+  onDrill?: () => void;
+}) {
+  const delivering = isDelivering(row.effectiveStatus);
   return (
-    <TableRow>
+    <TableRow className={cn(!delivering && "opacity-60", onDrill && "cursor-pointer")}>
       <TableCell className="max-w-[260px]">
         <div className="flex items-center gap-2">
           {level === "ad" && row.thumbnailUrl ? (
             <img
               src={row.thumbnailUrl}
               alt={`Creative thumbnail for ${row.name}`}
-              className="size-8 shrink-0 rounded object-cover"
+              className="size-10 shrink-0 rounded object-cover"
               loading="lazy"
             />
           ) : null}
-          <span className="truncate text-sm">{row.name}</span>
+          {onDrill ? (
+            <button
+              type="button"
+              onClick={onDrill}
+              className="truncate text-left text-sm hover:underline"
+            >
+              {row.name}
+            </button>
+          ) : (
+            <span className="truncate text-sm">{row.name}</span>
+          )}
         </div>
       </TableCell>
       <TableCell>
-        <span className="text-xs text-muted-foreground">{row.effectiveStatus ?? "—"}</span>
+        <span
+          className={cn(
+            "text-xs",
+            delivering ? "text-muted-foreground" : "font-medium text-muted-foreground",
+          )}
+        >
+          {row.effectiveStatus ?? "—"}
+        </span>
+        {!delivering && row.effectiveStatus ? (
+          <span className="ml-1 text-xs text-muted-foreground">(not delivering)</span>
+        ) : null}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {formatMoney(row.spend || null, row.currency)}
