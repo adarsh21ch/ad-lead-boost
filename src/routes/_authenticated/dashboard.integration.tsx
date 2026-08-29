@@ -7,8 +7,11 @@ import {
   getMetaConnectUrl,
   listAccountDeliveries,
   listMetaPages,
+  listMyAccounts,
   regenerateWebhookKey,
 } from "@/lib/adspro.functions";
+import { adAccountLabel } from "@/lib/ad-account-label";
+
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import { FacebookPageCard, type PageRow } from "@/components/facebook-page-card";
@@ -103,10 +106,21 @@ function IntegrationPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
 
-  const { data: account, isLoading } = useQuery({
-    queryKey: ["integration-account"],
-    queryFn: () => getAccountFn(),
+  // A user may own more than one AdsPro account; render the list and let them pick.
+  const listAccountsFn = useServerFn(listMyAccounts);
+  const { data: myAccounts } = useQuery({
+    queryKey: ["my-accounts"],
+    queryFn: () => listAccountsFn(),
   });
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const activeAccountId = selectedAccountId ?? myAccounts?.[0]?.id ?? null;
+
+  const { data: account, isLoading } = useQuery({
+    queryKey: ["integration-account", activeAccountId],
+    queryFn: () => getAccountFn({ data: { accountId: activeAccountId } }),
+    enabled: myAccounts !== undefined,
+  });
+
 
   const ready = Boolean(account && account.status === "active" && account.meta_dataset_id);
   const tokenHealth = getTokenHealth(account ?? {});
@@ -158,7 +172,7 @@ Content-Type: application/json
     if (!account) return;
     try {
       const res = await regenerateFn({ data: { accountId: account.id } });
-      queryClient.setQueryData(["integration-account"], (prev: typeof account) =>
+      queryClient.setQueryData(["integration-account", activeAccountId], (prev: typeof account) =>
         prev ? { ...prev, webhook_api_key: res.webhook_api_key } : prev,
       );
       setRevealed(true);
@@ -200,6 +214,42 @@ Content-Type: application/json
             Wire your CRM into AdsPro and prove the pipe works end to end.
           </p>
         </div>
+
+        {/* N accounts: a selector. One account: a plain label. */}
+        {myAccounts && myAccounts.length > 1 ? (
+          <div className="rounded-md border p-4">
+            <p className="text-xs text-muted-foreground">AdsPro account</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {myAccounts.map((row) => (
+                <Button
+                  key={row.id}
+                  size="sm"
+                  variant={row.id === activeAccountId ? "default" : "outline"}
+                  onClick={() => setSelectedAccountId(row.id)}
+                  className="h-auto flex-col items-start py-2"
+                >
+                  <span className="text-sm font-medium">{row.name}</span>
+                  <span className="text-[10px] opacity-70">
+                    {adAccountLabel({
+                      id: row.meta_ad_account_id,
+                      name: row.meta_ad_account_name,
+                    })}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : myAccounts && myAccounts.length === 1 && myAccounts[0] ? (
+          <p className="text-xs text-muted-foreground">
+            Account: <span className="font-medium text-foreground">{myAccounts[0].name}</span> ·{" "}
+            {adAccountLabel({
+              id: myAccounts[0].meta_ad_account_id,
+              name: myAccounts[0].meta_ad_account_name,
+            })}
+          </p>
+        ) : null}
+
+
 
         {account && tokenInvalid && (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
@@ -267,6 +317,8 @@ Content-Type: application/json
               account={{
                 id: account!.id as string,
                 meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
+                meta_ad_account_name: (account as { meta_ad_account_name?: string | null }).meta_ad_account_name ?? null,
+
                 meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
               }}
             />

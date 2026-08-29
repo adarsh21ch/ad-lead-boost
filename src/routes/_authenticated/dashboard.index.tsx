@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getTokenHealth } from "@/lib/token-health";
+import { adAccountPrimary, adAccountSecondary } from "@/lib/ad-account-label";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard/")({
   head: () => ({
@@ -241,10 +243,26 @@ function DashboardPage() {
                 </p>
               )}
 
-              <div className="flex justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <span className="text-muted-foreground">Ad account</span>
-                <span className="font-mono">{account.meta_ad_account_id ?? "—"}</span>
+                <span className="text-right">
+                  {adAccountPrimary({
+                    id: account.meta_ad_account_id,
+                    name: (account as { meta_ad_account_name?: string | null })
+                      .meta_ad_account_name,
+                  }) ?? "—"}
+                  {adAccountSecondary({
+                    id: account.meta_ad_account_id,
+                    name: (account as { meta_ad_account_name?: string | null })
+                      .meta_ad_account_name,
+                  }) ? (
+                    <span className="block font-mono text-xs text-muted-foreground">
+                      {account.meta_ad_account_id}
+                    </span>
+                  ) : null}
+                </span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dataset</span>
                 <span className="font-mono">{account.meta_dataset_id ?? "—"}</span>

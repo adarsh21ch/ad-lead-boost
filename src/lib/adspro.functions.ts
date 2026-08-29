@@ -169,7 +169,12 @@ export const listMetaPixels = createServerFn({ method: "GET" })
 
 export const saveAdAccountSelection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { accountId: string; adAccountId: string; datasetId: string }) => {
+  .inputValidator((data: {
+    accountId: string;
+    adAccountId: string;
+    datasetId: string;
+    adAccountName?: string | null;
+  }) => {
     if (!data?.accountId || !data?.adAccountId || !data?.datasetId) {
       throw new Error("accountId, adAccountId and datasetId are required");
     }
@@ -177,19 +182,22 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    const adAccountName = data.adAccountName?.trim() || null;
     // Meta reports insights in the ad account's timezone; null it so the fetcher re-reads it.
     const { data: saved, error } = await context.supabase
       .from("accounts")
       .update({
         meta_ad_account_id: adAccountId,
+        meta_ad_account_name: adAccountName,
         meta_dataset_id: data.datasetId,
         meta_ad_account_timezone: null,
         status: "active",
       })
       .eq("id", data.accountId)
       .eq("owner_user_id", context.userId)
-      .select("id, meta_ad_account_id, meta_dataset_id")
+      .select("id, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
       .maybeSingle();
+
     if (error) {
       console.error("[select-ad-account] database save failed", error);
       return { ok: false as const, error: error.message };
@@ -327,23 +335,44 @@ export const sendTestEvent = createServerFn({ method: "POST" })
     return { eventId: event.id, ...result };
   });
 
-export const getIntegrationAccount = createServerFn({ method: "GET" })
+/**
+ * Every AdsPro account this user owns. A user may own more than one (each with
+ * its own Page, ad account and dataset), so screens render a list, not a row.
+ */
+export const listMyAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
+      .select("id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const getIntegrationAccount = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data?: { accountId?: string | null }) => ({
+    accountId: data?.accountId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    let query = context.supabase
+      .from("accounts")
       .select(
-        "id, status, meta_ad_account_id, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
-      )
+        "id, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
+      );
+    if (data.accountId) query = query.eq("id", data.accountId);
+    const { data: rows, error } = await query
       .order("created_at", { ascending: true })
       .limit(1);
     if (error) throw error;
-    const account = data?.[0] ?? null;
+    const account = rows?.[0] ?? null;
     if (!account) return null;
     const ready = account.status === "active" && Boolean(account.meta_dataset_id);
     // Never expose the API key until the account is fully connected.
     return ready ? account : { ...account, webhook_api_key: "", ready: false };
   });
+
 
 export const regenerateWebhookKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -422,7 +451,7 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("accounts")
       .select(
-        "id, name, status, meta_ad_account_id, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
+        "id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
       )
       .order("created_at", { ascending: true })
       .limit(1);

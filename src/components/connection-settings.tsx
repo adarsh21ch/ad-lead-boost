@@ -1,21 +1,32 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMetaPixels } from "@/lib/adspro.functions";
 import {
   getSyncStatus,
   requestSyncNow,
+  validateAndSaveAdAccount,
   validateAndSaveDataset,
 } from "@/lib/connection.functions";
 import { metaErrorCopy } from "@/lib/meta-error-copy";
+import { adAccountLabel } from "@/lib/ad-account-label";
+import { AdAccountIdentityLines } from "@/components/ad-account-identity";
+import { AdAccountList } from "@/components/ad-account-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export type ConnectionAccount = {
   id: string;
   meta_ad_account_id?: string | null;
+  meta_ad_account_name?: string | null;
   meta_dataset_id?: string | null;
 };
 
@@ -34,8 +45,44 @@ function plural(n: number, unit: string) {
   return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
 }
 
-/** Ad account — current value plus a link into the existing picker (no second picker). */
+/**
+ * Ad account — name first, id second, and the chooser opens as a dialog so the
+ * user never leaves Integration. The list itself is the shared AdAccountList,
+ * the same component the /dashboard/select-ad-account route renders.
+ */
 function AdAccountCard({ account }: { account: ConnectionAccount }) {
+  const queryClient = useQueryClient();
+  const saveAdAccountFn = useServerFn(validateAndSaveAdAccount);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (adAccountId: string) => {
+    setSaving(adAccountId);
+    setError(null);
+    try {
+      const result = await saveAdAccountFn({ data: { accountId: account.id, adAccountId } });
+      if (!result.ok) {
+        setError(metaErrorCopy(result.error));
+        return;
+      }
+      toast.success(
+        `Ad account saved: ${adAccountLabel({
+          id: result.account.meta_ad_account_id,
+          name: result.account.meta_ad_account_name,
+        })}`,
+      );
+      setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-accounts"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not switch the ad account");
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -43,23 +90,57 @@ function AdAccountCard({ account }: { account: ConnectionAccount }) {
         <CardDescription>Where spend and performance data are read from.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="font-mono text-sm">{account.meta_ad_account_id ?? "Not set"}</p>
-        <Button asChild variant="outline" size="sm">
-          <Link
-            to="/dashboard/select-ad-account"
-            search={{ account: account.id, only: "adaccount" }}
-          >
-            Change ad account
-          </Link>
+        <AdAccountIdentityLines
+          id={account.meta_ad_account_id}
+          name={account.meta_ad_account_name}
+        />
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Change ad account
         </Button>
         <p className="text-xs text-muted-foreground">
           Spend and performance data will now come from the new ad account. Your leads are
-          unaffected — those arrive from your connected Facebook Page.
+          unaffected — those arrive from your connected Facebook Page, and your dataset stays as it
+          is.
         </p>
+
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) setError(null);
+          }}
+        >
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Change ad account</DialogTitle>
+              <DialogDescription>
+                Your dataset and Facebook Page are left untouched.
+              </DialogDescription>
+            </DialogHeader>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <AdAccountList
+              accountId={account.id}
+              actionSlot={(option) => (
+                <Button
+                  size="sm"
+                  disabled={saving !== null || option.id === account.meta_ad_account_id}
+                  onClick={() => save(option.id)}
+                >
+                  {saving === option.id
+                    ? "Checking…"
+                    : option.id === account.meta_ad_account_id
+                      ? "In use"
+                      : "Use this ad account"}
+                </Button>
+              )}
+            />
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
 }
+
 
 /** Dataset — lists datasets on the connected ad account and saves only the dataset. */
 function DatasetCard({ account }: { account: ConnectionAccount }) {

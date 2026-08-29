@@ -3,6 +3,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSettingsOverview } from "@/lib/adspro.functions";
+import { adAccountLabel } from "@/lib/ad-account-label";
+
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -164,7 +166,15 @@ function SettingsPage() {
             ) : connected ? (
               <>
                 <div>
-                  <Row label="Ad account" value={account?.meta_ad_account_id ?? "—"} />
+                  <Row
+                    label="Ad account"
+                    value={adAccountLabel({
+                      id: account?.meta_ad_account_id,
+                      name: (account as { meta_ad_account_name?: string | null } | null | undefined)
+                        ?.meta_ad_account_name,
+                    })}
+                  />
+
                   <Row label="Dataset" value={account?.meta_dataset_id ?? "—"} />
                   <Row
                     label="Page"

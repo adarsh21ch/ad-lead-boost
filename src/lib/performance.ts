@@ -11,12 +11,15 @@ export type PerfLevel = "campaign" | "adset" | "ad";
 
 export type PerfRow = {
   account_id: string | null;
+  meta_ad_account_id: string | null;
+  meta_ad_account_name: string | null;
   level: string | null;
   entity_id: string | null;
   entity_name: string | null;
   parent_id: string | null;
   effective_status: string | null;
   creative_thumbnail_url: string | null;
+
   stat_date: string | null;
   spend: number | null;
   impressions: number | null;
