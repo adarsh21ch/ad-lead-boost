@@ -131,6 +131,27 @@ export const Route = createFileRoute("/api/public/test-event")({
         }
 
         const ok = httpStatus != null && httpStatus >= 200 && httpStatus < 300;
+
+        // One call per Meta response; record_token_health owns all state logic.
+        const { reportTokenHealth, reportMetaError } = await import("@/lib/token-health.server");
+        if (ok) {
+          await reportTokenHealth(account.id, "ok", "dispatcher");
+        } else {
+          const metaErrorBody = (metaResponse as { error?: Record<string, unknown> } | null)?.error;
+          await reportMetaError(account.id, "dispatcher", {
+            code: typeof metaErrorBody?.["code"] === "number" ? (metaErrorBody["code"] as number) : null,
+            errorSubcode:
+              typeof metaErrorBody?.["error_subcode"] === "number"
+                ? (metaErrorBody["error_subcode"] as number)
+                : null,
+            httpStatus,
+            message:
+              typeof metaErrorBody?.["message"] === "string"
+                ? (metaErrorBody["message"] as string)
+                : null,
+          });
+        }
+
         await supabaseAdmin.from("capi_delivery_logs").insert({
           status_event_id: statusEvent.id,
           meta_event_name: "Lead_Qualified",
