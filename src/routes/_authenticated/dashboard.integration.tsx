@@ -97,6 +97,71 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+/** Section anchor — scroll-margin keeps the heading clear of sticky headers. */
+function Section({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="scroll-mt-24">
+      {children}
+    </section>
+  );
+}
+
+/** Collapsed-by-default developer reference. */
+function Disclosure({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex w-full items-center justify-between gap-4 text-left"
+        >
+          <CardTitle className="text-base">{title}</CardTitle>
+          <span className="text-xs text-muted-foreground">{open ? "Hide" : "Show"}</span>
+        </button>
+      </CardHeader>
+      {open ? <CardContent>{children}</CardContent> : null}
+    </Card>
+  );
+}
+
+const RAIL_GROUPS: RailGroup[] = [
+  {
+    label: "Connection",
+    items: [
+      { id: "page", label: "Facebook Page" },
+      { id: "adaccount", label: "Ad account" },
+      { id: "pixel", label: "Pixel (dataset)" },
+    ],
+  },
+  { label: "Data", items: [{ id: "data", label: "Data collection" }] },
+  {
+    label: "CRM setup",
+    items: [
+      { id: "webhook", label: "Webhook endpoint" },
+      { id: "contract", label: "Send status updates" },
+      { id: "zapier", label: "Zapier" },
+    ],
+  },
+  {
+    label: "Testing",
+    items: [
+      { id: "test", label: "Send test event" },
+      { id: "deliveries", label: "Recent deliveries" },
+    ],
+  },
+];
+
 function IntegrationPage() {
   const queryClient = useQueryClient();
   const getAccountFn = useServerFn(getIntegrationAccount);
