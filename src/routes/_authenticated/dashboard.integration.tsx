@@ -21,7 +21,7 @@ import {
   SyncHealthCard,
   type ConnectionAccount,
 } from "@/components/connection-settings";
-import { SectionRail, type RailGroup } from "@/components/section-rail";
+import { SectionRail, type RailItem } from "@/components/section-rail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,31 +135,17 @@ function Disclosure({
   );
 }
 
-const RAIL_GROUPS: RailGroup[] = [
-  {
-    label: "Connection",
-    items: [
-      { id: "page", label: "Facebook Page" },
-      { id: "adaccount", label: "Ad account" },
-      { id: "pixel", label: "Pixel (dataset)" },
-    ],
-  },
-  { label: "Data", items: [{ id: "data", label: "Data collection" }] },
-  {
-    label: "CRM setup",
-    items: [
-      { id: "webhook", label: "Webhook endpoint" },
-      { id: "contract", label: "Send status updates" },
-      { id: "zapier", label: "Zapier" },
-    ],
-  },
-  {
-    label: "Testing",
-    items: [
-      { id: "test", label: "Send test event" },
-      { id: "deliveries", label: "Recent deliveries" },
-    ],
-  },
+/** One flat list — no group headers, no extra decision for the user. */
+const RAIL_ITEMS: RailItem[] = [
+  { id: "page", label: "Facebook Page" },
+  { id: "adaccount", label: "Ad account" },
+  { id: "pixel", label: "Pixel (dataset)" },
+  { id: "data", label: "Data collection" },
+  { id: "webhook", label: "Webhook endpoint" },
+  { id: "contract", label: "Send status updates" },
+  { id: "zapier", label: "Zapier" },
+  { id: "test", label: "Send test event" },
+  { id: "deliveries", label: "Recent deliveries" },
 ];
 
 function IntegrationPage() {
@@ -343,7 +329,8 @@ Content-Type: application/json
         {/* Meta connection: a thin strip when healthy, a full red card when not. */}
         {account && (tokenInvalid || tokenExpired) ? (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
-            <p className="font-semibold text-destructive">
+            <p className="flex items-center gap-2 font-semibold text-destructive">
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-destructive" />
               {tokenInvalid
                 ? "Your Meta connection is no longer valid."
                 : "Your Meta connection has expired."}
@@ -369,8 +356,12 @@ Content-Type: application/json
           <div className="rounded-md border px-4 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium">Meta connection</span>
-              <span className="text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
                 ·{" "}
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-full bg-emerald-500"
+                />
                 {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null
                   ? `Connected — expires in ${tokenHealth.daysRemaining} ${tokenHealth.daysRemaining === 1 ? "day" : "days"}`
                   : "Connected — leads, spend and event delivery are all authorised."}
@@ -381,7 +372,7 @@ Content-Type: application/json
                 disabled={reconnecting}
                 className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
-                {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+                {reconnecting ? "Redirecting…" : "Manage connection"}
               </button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -417,7 +408,7 @@ Content-Type: application/json
           </Card>
         ) : (
           <div className="flex gap-8">
-            <SectionRail groups={RAIL_GROUPS} onJump={openSection} />
+            <SectionRail items={RAIL_ITEMS} onJump={openSection} />
             <div className="min-w-0 flex-1 space-y-6">
               <h2 className="text-lg font-semibold tracking-tight">Connection settings</h2>
 
