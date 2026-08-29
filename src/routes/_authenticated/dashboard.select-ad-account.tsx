@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  getMetaConnectUrl,
-  listMetaAdAccounts,
   listMetaPixels,
   saveAdAccountSelection,
 } from "@/lib/adspro.functions";
 import { validateAndSaveAdAccount } from "@/lib/connection.functions";
 import { metaErrorCopy } from "@/lib/meta-error-copy";
+import { adAccountLabel } from "@/lib/ad-account-label";
+import { AdAccountList, type MetaAdAccountOption } from "@/components/ad-account-list";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
 type MetaError = {
@@ -91,36 +90,26 @@ function SelectAdAccountPage() {
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { account?: string; only?: string };
   const accountId = search.account ?? "";
-  // "only=adaccount" comes from Integration → Change ad account: swap the ad account
-  // and leave the existing dataset untouched.
+  // "only=adaccount" is the deep-link form of the Integration dialog: swap the ad
+  // account and leave the existing dataset untouched.
   const adAccountOnly = search.only === "adaccount";
   const [savingAdAccountId, setSavingAdAccountId] = useState<string | null>(null);
-  const [adAccountId, setAdAccountId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<MetaAdAccountOption | null>(null);
   const [savingDatasetId, setSavingDatasetId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [dismissedAdError, setDismissedAdError] = useState(false);
   const [dismissedPixelError, setDismissedPixelError] = useState(false);
 
-  const listAdAccounts = useServerFn(listMetaAdAccounts);
   const listPixels = useServerFn(listMetaPixels);
   const saveSelection = useServerFn(saveAdAccountSelection);
   const saveAdAccountOnly = useServerFn(validateAndSaveAdAccount);
-  const getConnectUrl = useServerFn(getMetaConnectUrl);
 
-  const adAccountsQuery = useQuery({
-    queryKey: ["meta-ad-accounts", accountId],
-    queryFn: () => listAdAccounts({ data: { accountId } }),
-    enabled: Boolean(accountId),
-    retry: false,
-  });
-  const adAccounts = adAccountsQuery.data?.ok ? adAccountsQuery.data.data : [];
-  const selectedAdAccount = adAccounts.find((account) => account.id === adAccountId);
+  const adAccountId = selected?.id ?? null;
 
   const pixelsQuery = useQuery({
-    queryKey: ["meta-pixels", accountId, adAccountId, selectedAdAccount?.business?.id],
+    queryKey: ["meta-pixels", accountId, adAccountId, selected?.business?.id],
     queryFn: () => {
       if (!adAccountId) throw new Error("Select an ad account first");
-      const businessId = selectedAdAccount?.business?.id;
+      const businessId = selected?.business?.id;
       return listPixels({
         data: businessId ? { accountId, adAccountId, businessId } : { accountId, adAccountId },
       });
@@ -129,41 +118,34 @@ function SelectAdAccountPage() {
     retry: false,
   });
 
-  useEffect(() => setDismissedAdError(false), [adAccountsQuery.dataUpdatedAt]);
   useEffect(() => {
     setDismissedPixelError(false);
     setSaveError(null);
   }, [adAccountId, pixelsQuery.dataUpdatedAt]);
 
-  const adError = adAccountsQuery.data && !adAccountsQuery.data.ok
-    ? adAccountsQuery.data.error
-    : adAccountsQuery.isError ? plainError(adAccountsQuery.error) : null;
   const pixelError = pixelsQuery.data && !pixelsQuery.data.ok
     ? pixelsQuery.data.error
     : pixelsQuery.isError ? plainError(pixelsQuery.error) : null;
   const pixels = pixelsQuery.data?.ok ? pixelsQuery.data.data : [];
 
-  const reconnectMeta = async () => {
-    try {
-      const url = await getConnectUrl({ data: { accountId } });
-      window.location.href = url;
-    } catch (error) {
-      setSaveError(plainError(error).message);
-    }
-  };
-
-  const saveAdAccount = async (id: string) => {
-    setSavingAdAccountId(id);
+  const saveAdAccount = async (option: MetaAdAccountOption) => {
+    setSavingAdAccountId(option.id);
     setSaveError(null);
     try {
-      const result = await saveAdAccountOnly({ data: { accountId, adAccountId: id } });
+      const result = await saveAdAccountOnly({ data: { accountId, adAccountId: option.id } });
       if (!result.ok) {
         setSaveError(metaErrorCopy(result.error));
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-accounts"] });
       await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
-      toast.success(`Ad account saved: ${result.account.meta_ad_account_id}`);
+      toast.success(
+        `Ad account saved: ${adAccountLabel({
+          id: result.account.meta_ad_account_id,
+          name: result.account.meta_ad_account_name,
+        })}`,
+      );
       navigate({ to: "/dashboard/integration" });
     } catch (error) {
       setSaveError(plainError(error).message);
@@ -177,12 +159,15 @@ function SelectAdAccountPage() {
     setSavingDatasetId(datasetId);
     setSaveError(null);
     try {
-      const result = await saveSelection({ data: { accountId, adAccountId, datasetId } });
+      const result = await saveSelection({
+        data: { accountId, adAccountId, datasetId, adAccountName: selected?.name ?? null },
+      });
       if (!result.ok) {
         setSaveError(result.error);
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-accounts"] });
       toast.success("Ad account and dataset saved");
       navigate({ to: "/dashboard" });
     } catch (error) {
@@ -195,6 +180,11 @@ function SelectAdAccountPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-6">
+        {/* No dead ends: there is always a way back out of this page. */}
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/dashboard/integration">← Back to Integration</Link>
+        </Button>
+
         <div>
           <h1 className="text-2xl font-bold">Select ad account</h1>
           <p className="text-sm text-muted-foreground">
@@ -206,102 +196,71 @@ function SelectAdAccountPage() {
 
         {!accountId ? (
           <ErrorPanel title="Missing account parameter" error={plainError("Open this page from the dashboard’s Choose ad account & dataset button.")} />
-        ) : adAccountsQuery.isPending ? (
-          <div className="rounded-lg border p-5"><p className="text-sm font-medium">Loading ad accounts…</p></div>
-        ) : adError && !dismissedAdError ? (
-          <div className="space-y-3">
-            <ErrorPanel title="Meta rejected the ad-accounts request" error={adError} onDismiss={() => setDismissedAdError(true)} />
-            <div className="flex gap-2">
-              {adError.code === 190 ? <Button onClick={reconnectMeta}>Reconnect Meta</Button> : null}
-              <Button variant="outline" onClick={() => adAccountsQuery.refetch()}>Retry</Button>
-            </div>
-          </div>
-        ) : adAccounts.length === 0 ? (
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium">No ad accounts found for this Meta user.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Check that this Facebook account has a Business role on an ad account.</p>
-            {adAccountsQuery.data?.ok ? (
-              <details className="mt-3 text-xs">
-                <summary className="cursor-pointer font-medium">Raw Meta response</summary>
-                <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3">{adAccountsQuery.data.rawResponse}</pre>
-              </details>
-            ) : null}
-          </div>
         ) : (
-          <div className="grid gap-3">
-            {adAccountOnly && saveError ? (
-              <ErrorPanel title="Could not switch ad account" error={plainError(saveError)} onDismiss={() => setSaveError(null)} />
+          <>
+            {saveError ? (
+              <ErrorPanel
+                title={adAccountOnly ? "Could not switch ad account" : "Could not save this selection"}
+                error={plainError(saveError)}
+                onDismiss={() => setSaveError(null)}
+              />
             ) : null}
-            {adAccounts.map((account) => (
-              <Card key={account.id} className={adAccountId === account.id ? "border-primary" : undefined}>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-base">{account.name}</CardTitle>
-                      <CardDescription className="font-mono">{account.id}</CardDescription>
+
+            <AdAccountList
+              accountId={accountId}
+              selectedId={adAccountOnly ? null : adAccountId}
+              actionSlot={(option) =>
+                adAccountOnly ? (
+                  <Button
+                    size="sm"
+                    disabled={savingAdAccountId !== null}
+                    onClick={() => saveAdAccount(option)}
+                  >
+                    {savingAdAccountId === option.id ? "Checking…" : "Use this ad account"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant={adAccountId === option.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelected(option)}
+                  >
+                    {adAccountId === option.id ? "Selected" : "Select"}
+                  </Button>
+                )
+              }
+              expandedSlot={() => (
+                <>
+                  <p className="text-sm font-medium">Pick a dataset (pixel):</p>
+                  {pixelsQuery.isPending ? (
+                    <p className="text-sm text-muted-foreground">Loading datasets…</p>
+                  ) : pixelError && !dismissedPixelError ? (
+                    <div className="space-y-2">
+                      <ErrorPanel title="Meta rejected the datasets request" error={pixelError} onDismiss={() => setDismissedPixelError(true)} />
+                      <Button variant="outline" size="sm" onClick={() => pixelsQuery.refetch()}>Retry</Button>
                     </div>
-                    {adAccountOnly ? (
-                      <Button
-                        size="sm"
-                        disabled={savingAdAccountId !== null}
-                        onClick={() => saveAdAccount(account.id)}
-                      >
-                        {savingAdAccountId === account.id ? "Checking…" : "Use this ad account"}
-                      </Button>
-                    ) : (
-                      <Button variant={adAccountId === account.id ? "default" : "outline"} size="sm" onClick={() => setAdAccountId(account.id)}>
-                        {adAccountId === account.id ? "Selected" : "Select"}
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                {adAccountId === account.id && !adAccountOnly ? (
-                  <CardContent className="space-y-3 border-t pt-4">
-                    <p className="text-sm font-medium">Pick a dataset (pixel):</p>
-                    {pixelsQuery.isPending ? (
-                      <p className="text-sm text-muted-foreground">Loading datasets…</p>
-                    ) : pixelError && !dismissedPixelError ? (
-                      <div className="space-y-2">
-                        <ErrorPanel title="Meta rejected the datasets request" error={pixelError} onDismiss={() => setDismissedPixelError(true)} />
-                        <div className="flex gap-2">
-                          {pixelError.code === 190 ? <Button size="sm" onClick={reconnectMeta}>Reconnect Meta</Button> : null}
-                          <Button variant="outline" size="sm" onClick={() => pixelsQuery.refetch()}>Retry</Button>
-                        </div>
-                      </div>
-                    ) : pixels.length === 0 ? (
-                      <div>
-                        <p className="text-sm text-muted-foreground">No datasets or pixels were found for this ad account or its Business portfolio.</p>
-                        {pixelsQuery.data?.ok ? (
-                          <details className="mt-3 text-xs">
-                            <summary className="cursor-pointer font-medium">Raw Meta response</summary>
-                            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3">{pixelsQuery.data.rawResponses.join("\n\n")}</pre>
-                          </details>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {pixelsQuery.data?.ok && pixelsQuery.data.warnings.length > 0 && !dismissedPixelError && pixelsQuery.data.warnings[0] ? (
-                          <ErrorPanel title="Some Business dataset sources could not be read" error={pixelsQuery.data.warnings[0]} onDismiss={() => setDismissedPixelError(true)} />
-                        ) : null}
-                        {saveError ? <ErrorPanel title="Could not save this selection" error={plainError(saveError)} onDismiss={() => setSaveError(null)} /> : null}
-                        {pixels.map((pixel) => (
-                          <div key={pixel.id} className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-                            <div>
-                              <p className="text-sm font-medium">{pixel.name}</p>
-                              <p className="font-mono text-xs text-muted-foreground">{pixel.id}</p>
-                            </div>
-                            <Button size="sm" disabled={savingDatasetId !== null} onClick={() => save(pixel.id)}>
-                              {savingDatasetId === pixel.id ? "Saving…" : "Use this dataset"}
-                            </Button>
+                  ) : pixels.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No datasets or pixels were found for this ad account or its Business portfolio.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {pixels.map((pixel) => (
+                        <div key={pixel.id} className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+                          <div>
+                            <p className="text-sm font-medium">{pixel.name}</p>
+                            <p className="font-mono text-xs text-muted-foreground">{pixel.id}</p>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                ) : null}
-              </Card>
-            ))}
-          </div>
+                          <Button size="sm" disabled={savingDatasetId !== null} onClick={() => save(pixel.id)}>
+                            {savingDatasetId === pixel.id ? "Saving…" : "Use this dataset"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            />
+          </>
         )}
       </div>
     </AppShell>
