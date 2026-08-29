@@ -591,10 +591,13 @@ Content-Type: application/json
                 )}
               </CardContent>
             </Card>
+              </Section>
 
+              <Section id="deliveries">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Recent deliveries</CardTitle>
+                <CardDescription>Newest first — the 20 most recent events.</CardDescription>
               </CardHeader>
               <CardContent>
                 {!deliveries?.length ? (
@@ -605,7 +608,7 @@ Content-Type: application/json
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Time</TableHead>
+                        <TableHead>Time (newest first)</TableHead>
                         <TableHead>Event</TableHead>
                         <TableHead>HTTP</TableHead>
                         <TableHead>Status</TableHead>
