@@ -51,7 +51,7 @@ function plural(n: number, unit: string) {
  * user never leaves Integration. The list itself is the shared AdAccountList,
  * the same component the /dashboard/select-ad-account route renders.
  */
-function AdAccountCard({ account }: { account: ConnectionAccount }) {
+export function AdAccountCard({ account }: { account: ConnectionAccount }) {
   const queryClient = useQueryClient();
   const saveAdAccountFn = useServerFn(validateAndSaveAdAccount);
   const [open, setOpen] = useState(false);
