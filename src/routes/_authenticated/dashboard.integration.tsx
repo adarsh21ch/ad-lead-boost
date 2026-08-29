@@ -312,9 +312,21 @@ Content-Type: application/json
                         ? "Connected — expiring soon"
                         : "Connected"}
                 </p>
-                {tokenHealth.message ? (
-                  <p className="text-sm text-muted-foreground">{tokenHealth.message}</p>
-                ) : null}
+                {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null ? (
+                  <p className="text-sm text-muted-foreground">
+                    Your Meta login expires in {tokenHealth.daysRemaining}{" "}
+                    {tokenHealth.daysRemaining === 1 ? "day" : "days"}. Reconnect to avoid a gap in
+                    spend data and event delivery.
+                  </p>
+                ) : tokenInvalid || tokenExpired ? (
+                  <p className="text-sm text-muted-foreground">
+                    Lead outcomes are not reaching Meta and spend data has stopped updating.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Leads, spend data and event delivery are all authorised.
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
