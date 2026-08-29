@@ -140,18 +140,9 @@ function PerformancePage() {
     drill.length === 0 ? "campaign" : drill.length === 1 ? "adset" : "ad";
   const parentId = drill.length > 0 ? drill[drill.length - 1]!.id : null;
 
-  const syncQuery = useQuery({
-    queryKey: ["insights-sync-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("insights_sync_runs")
-        .select("id, status, started_at, finished_at, error, meta_calls")
-        .order("started_at", { ascending: false })
-        .limit(1);
-      if (error) throw error;
-      return data?.[0] ?? null;
-    },
-  });
+  // Per-account sync status is defined below, once we know which AdsPro account
+  // rows belong to the ad account selected on this screen.
+
 
   // One row per entity per day, for exactly ONE level. Levels are never summed
   // together — campaign, adset and ad rows all count the same leads.
