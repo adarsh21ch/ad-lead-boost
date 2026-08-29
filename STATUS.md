@@ -2060,3 +2060,55 @@ Two paths, resolved the moment the ad is built:
 Note: SAGAR ADS 1 has NO payment method, so spend hard-stops at ₹1,148.80 rather than
 falling back to a card. Expected, not a fault. Meta's daily spending limit on it is
 ₹22,156.67 — irrelevant at ₹150/day.
+
+### Session 9 — AD ACCOUNT SWITCHED TO SAGAR ADS 1, VERIFIED LIVE (2026-08-29 05:54Z)
+
+The decision above is now DONE. Adarsh switched the Page in the UI; the ad account had no UI
+control at all (the picker only runs on first connect), so Claude changed the field directly.
+
+**Xento** `1d87b0f7-fb96-4e6f-9e8b-eeebf9f32351` now reads:
+| Field | Value |
+|---|---|
+| `meta_page_id` | `404251806108429` (**EduEarn.in**), `subscribed` 05:51:09Z |
+| `meta_ad_account_id` | `act_2447097022359700` (**SAGAR ADS 1**) |
+| `meta_dataset_id` | `1293470716241461` — **UNCHANGED**, the Page switch did not touch it |
+
+Acme Solar was not touched and still points at `act_863995570089897`.
+
+### *** SETTLED: the stored token CAN read SAGAR ADS 1's Insights ***
+This was the one real unknown in the switch. `run_insights_sync(3)` at 05:54:30Z returned
+**`status = ok`**, `meta_code` null, `error` empty, and `token_last_ok_at` advanced to
+05:54:34Z — which proves the token actually reached Meta for the NEW account rather than just
+writing a log line. A missing permission would have surfaced as code 200/10 and a dead token
+as 190. Neither happened. **Nothing about the ad account switch is waiting on Meta.**
+
+### The timezone trap, and the evidence it was avoided
+`meta_ad_account_timezone` was deliberately set to NULL as part of the switch. The fetcher
+SKIPS its `?fields=timezone_name,currency` call when that column is already populated
+(Session 8), so leaving `Asia/Kolkata` in place would have carried a value fetched for a
+DIFFERENT ad account onto SAGAR ADS 1 — never verified, just inherited. Both accounts are in
+India so the value is identical, which is exactly what makes this the kind of bug that never
+surfaces until it does.
+
+Proof it re-fetched rather than reusing: **Xento's run used 4 `meta_calls`, not the usual 3** —
+the extra call is the timezone lookup — and the column came back populated as `Asia/Kolkata`.
+*** Any future ad-account change MUST null this column in the same statement. ***
+
+### Still true after the switch
+Warehouse still 0 rows (correct — no ad has spent yet). Both tokens `healthy`. 0008's
+derivation stays coherent: a lead's `ad_id` will name an ad inside SAGAR ADS 1, and
+`ad_entities` will hold SAGAR ADS 1's hierarchy, because the sync now pulls that account.
+
+### OPEN — dataset is not attached to the ad account now running the ads
+`meta_dataset_id` `1293470716241461` was chosen when the account pointed at
+`act_863995570089897`. For returned conversions to actually influence optimisation, the
+dataset must be attached to the ad account running the ads. Until that is checked, the
+pipeline test is fully valid — spend collected, leads captured, cost-per-qualified-lead
+computed — **but Meta is not learning from the signal.** Do not judge the CAPI half of the
+product until this is resolved.
+
+### OPEN — frontend gap, prompt written
+There is no way to change the ad account from the UI; the picker runs only on first connect.
+Every customer who ever switches ad accounts hits this. `LOVABLE_PROMPT_17_CHANGE_AD_ACCOUNT.md`
+is written and unpasted. It carries the two non-obvious requirements the hard way:
+**do not clobber `meta_dataset_id`**, and **null `meta_ad_account_timezone` on change**.
