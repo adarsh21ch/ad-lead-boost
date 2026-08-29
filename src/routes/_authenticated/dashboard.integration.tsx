@@ -332,79 +332,45 @@ Content-Type: application/json
             </CardContent>
           </Card>
         ) : (
-          <>
-            <h2 className="pt-2 text-lg font-semibold tracking-tight">Connection settings</h2>
+          <div className="flex gap-8">
+            <SectionRail groups={RAIL_GROUPS} onJump={openSection} />
+            <div className="min-w-0 flex-1 space-y-6">
+              <h2 className="text-lg font-semibold tracking-tight">Connection settings</h2>
 
-            {/* 1. Meta connection — is the login alive at all. */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Meta connection</CardTitle>
-                <CardDescription>The Meta login everything else depends on.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-medium">
-                  {tokenInvalid
-                    ? "Not valid — reconnect required"
-                    : tokenExpired
-                      ? "Expired — reconnect required"
-                      : tokenHealth.state === "expiring"
-                        ? "Connected — expiring soon"
-                        : "Connected"}
-                </p>
-                {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null ? (
-                  <p className="text-sm text-muted-foreground">
-                    Your Meta login expires in {tokenHealth.daysRemaining}{" "}
-                    {tokenHealth.daysRemaining === 1 ? "day" : "days"}. Reconnect to avoid a gap in
-                    spend data and event delivery.
-                  </p>
-                ) : tokenInvalid || tokenExpired ? (
-                  <p className="text-sm text-muted-foreground">
-                    Lead outcomes are not reaching Meta and spend data has stopped updating.
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Leads, spend data and event delivery are all authorised.
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={reconnectMeta}
-                  disabled={reconnecting}
-                >
-                  {reconnecting ? "Redirecting…" : "Reconnect Meta"}
-                </Button>
-              </CardContent>
-            </Card>
+              {/* 1. Facebook Page — where leads come IN. */}
+              <Section id="page">
+                <FacebookPageCard
+                  account={{
+                    meta_page_id:
+                      (account as { meta_page_id?: string | null }).meta_page_id ?? null,
+                    page_subscribe_status:
+                      (account as { page_subscribe_status?: string | null })
+                        .page_subscribe_status ?? null,
+                    page_subscribe_error:
+                      (account as { page_subscribe_error?: string | null })
+                        .page_subscribe_error ?? null,
+                    page_subscribed_at:
+                      (account as { page_subscribed_at?: string | null }).page_subscribed_at ??
+                      null,
+                  }}
+                  storedPages={storedPages as PageRow[] | undefined}
+                  onReconnect={reconnectMeta}
+                  reconnecting={reconnecting}
+                />
+              </Section>
 
-            {/* 2. Facebook Page — where leads come IN. */}
-            <FacebookPageCard
-              account={{
-                meta_page_id: (account as { meta_page_id?: string | null }).meta_page_id ?? null,
-                page_subscribe_status:
-                  (account as { page_subscribe_status?: string | null }).page_subscribe_status ??
-                  null,
-                page_subscribe_error:
-                  (account as { page_subscribe_error?: string | null }).page_subscribe_error ??
-                  null,
-                page_subscribed_at:
-                  (account as { page_subscribed_at?: string | null }).page_subscribed_at ?? null,
-              }}
-              storedPages={storedPages as PageRow[] | undefined}
-              onReconnect={reconnectMeta}
-              reconnecting={reconnecting}
-            />
+              {/* 2. Ad account → 3. Pixel → 4. Data collection. */}
+              <Section id="adaccount">
+                <AdAccountCard account={connectionAccount} />
+              </Section>
+              <Section id="pixel">
+                <DatasetCard account={connectionAccount} />
+              </Section>
+              <Section id="data">
+                <SyncHealthCard account={connectionAccount} />
+              </Section>
 
-            {/* 3. Ad account (read) → 4. Pixel (back) → 5. Data collection (health). */}
-            <ConnectionSettings
-              account={{
-                id: account!.id as string,
-                meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
-                meta_ad_account_name: (account as { meta_ad_account_name?: string | null }).meta_ad_account_name ?? null,
-                meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
-                meta_dataset_name: (account as { meta_dataset_name?: string | null }).meta_dataset_name ?? null,
-              }}
-            />
+
 
 
             <Card>
