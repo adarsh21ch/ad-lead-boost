@@ -2005,3 +2005,58 @@ Either way the answer is now one command, and either way nothing needs rebuildin
 6. Onboarding polish · 7. Agency mode · 8. Billing — unstarted, deliberately
 
 `LEAD_ENRICHMENT_ENABLED` untouched, still `"false"`. Lovable not involved this session.
+
+### Session 9 — DECISION: run the live ad from SAGAR ADS 1, not the Nevorai account (Adarsh)
+
+**Not done yet — this records the decision and what must be verified after.**
+
+Adarsh's call, and it is correct. The Nevorai ad account `863995570089897` has **₹35.35**
+available funds (prepaid mode — a Visa ...2862 is on file but "How you'll pay" is Available
+funds, so ads pause when the balance runs out, they do not fall through to the card). It
+would stop within hours. `SAGAR ADS 1` `2447097022359700` already holds **₹1,148.80** of
+prepaid credit — money already paid to Meta and sitting idle, i.e. no fresh cash out today.
+~7.5 days at ₹150/day. Claude's earlier "using it doesn't save money, it only changes which
+pot pays" was wrong on cash flow and was withdrawn.
+
+Both accounts verified via `ads_get_ad_accounts`:
+| Account | ID | Owning business |
+|---|---|---|
+| SAGAR ADS 1 | 2447097022359700 | EduEarn (2880116308807446) |
+| VIPIN ADS 1 | 1958815484887566 | EduEarn |
+| **Nevorai** (what AdsPro points at today) | **863995570089897** | Nevorai (795618596158696) |
+
+Not a third-party-money question: SAGAR ADS 1's billing profile shows Tax ID
+**23CBCPC3986J1ZN verified** — Nevorai's own GSTIN. Invoices route to Adarsh's proprietorship.
+
+### *** THE POINT THAT MAKES THIS A ONE-FIELD CHANGE ***
+**AdsPro routes leads by PAGE ID, not by ad account.** `meta-leadgen.ts` maps the webhook's
+`page_id` to an account and drops anything unmapped. The ad account ID controls exactly one
+thing: which account `insights-sync` pulls spend and `ad_entities` from. So switching costs
+one field, `accounts.meta_ad_account_id`, set through `/dashboard/select-ad-account`.
+
+Two paths, resolved the moment the ad is built:
+- SAGAR ADS 1 **can** select the Nevorai Page `1126670470531846` -> change nothing else;
+  leads keep routing to the Xento account.
+- It **cannot** (Page sits in the Nevorai portfolio, ad account in EduEarn) -> use a Page
+  SAGAR ADS 1 does have and connect it via Page auto-connect (built Session 5). Equivalent.
+
+0008 stays coherent either way: the lead's `ad_id` will be an ad inside SAGAR ADS 1, and
+`ad_entities` will hold SAGAR ADS 1's hierarchy, because the sync now pulls that account.
+
+### VERIFY AFTER THE SWITCH — three things, none optional
+1. **`meta_dataset_id` must survive the picker.** It currently reads `1293470716241461` on
+   Xento. The picker writes ad account AND dataset in one flow; a blanked or changed dataset
+   silently breaks CAPI delivery, which is the half of the product that pushes conversions
+   back. Check the column, do not trust the screen.
+2. **Next `insights_sync_runs` row must be `ok` for the new ad account.** This is the real
+   test that the stored token can read SAGAR ADS 1's Insights. A missing permission surfaces
+   as `meta_code` 200/10, a dead token as 190. Silence is not success — check the row.
+3. **Dataset-to-ad-account attachment.** For returned conversions to actually influence
+   optimisation, the dataset must be attached to the ad account running the ads. If it stays
+   on the Nevorai side, the pipeline test is still fully valid (spend collected, leads
+   captured, cost-per-qualified-lead computed) but Meta is not learning from the signal yet.
+   Do not judge the CAPI half until this is right.
+
+Note: SAGAR ADS 1 has NO payment method, so spend hard-stops at ₹1,148.80 rather than
+falling back to a card. Expected, not a fault. Meta's daily spending limit on it is
+₹22,156.67 — irrelevant at ₹150/day.
