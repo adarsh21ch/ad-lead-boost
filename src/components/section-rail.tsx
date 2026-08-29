@@ -36,6 +36,9 @@ export function SectionRail({
   const [active, setActive] = useState<string | null>(ids[0] ?? null);
   const slotRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // While a click-driven scroll is animating, the observer must not touch the
+  // active item — otherwise it flickers through every section passed en route.
+  const programmatic = useRef(false);
 
   // Measure the placeholder once (and on resize) — never on scroll, so the
   // rail's fixed position stays constant while the content column moves.
@@ -51,6 +54,26 @@ export function SectionRail({
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  // End-of-page / top-of-page override: "topmost visible section" can never
+  // select the final section, because the page runs out of scroll first.
+  useEffect(() => {
+    const onScroll = () => {
+      if (programmatic.current) return;
+      const el = document.scrollingElement ?? document.documentElement;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
+        const last = ids[ids.length - 1];
+        if (last) setActive(last);
+      } else if (el.scrollTop <= 4) {
+        const first = ids[0];
+        if (first) setActive(first);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids.join("|")]);
+
   useEffect(() => {
     const els = ids
       .map((id) => document.getElementById(id))
@@ -64,6 +87,9 @@ export function SectionRail({
           if (entry.isIntersecting) visible.set(entry.target.id, entry.boundingClientRect.top);
           else visible.delete(entry.target.id);
         }
+        if (programmatic.current) return;
+        const el = document.scrollingElement ?? document.documentElement;
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) return;
         if (visible.size > 0) {
           // topmost visible section wins — works scrolling up and down
           const next = [...visible.entries()].sort((a, b) => a[1] - b[1])[0];
@@ -79,9 +105,20 @@ export function SectionRail({
 
   const go = (id: string) => {
     onJump?.(id);
+    setActive(id);
+    programmatic.current = true;
+    let done = false;
+    const release = () => {
+      if (done) return;
+      done = true;
+      programmatic.current = false;
+      window.removeEventListener("scrollend", release);
+    };
+    // `scrollend` where supported; Safari lacks it, hence the timeout fallback.
+    window.addEventListener("scrollend", release);
+    window.setTimeout(release, 700);
     // allow a disclosure to open before measuring the target
     requestAnimationFrame(() => jumpToSection(id));
-    setActive(id);
   };
 
   return (
@@ -104,11 +141,12 @@ export function SectionRail({
       </nav>
 
       {/* Desktop: invisible placeholder reserves the column width in the flex row. */}
-      <div ref={slotRef} aria-hidden className="hidden w-48 shrink-0 lg:block" />
+      <div ref={slotRef} aria-hidden className="hidden w-44 shrink-0 lg:block" />
+
 
       {/* Desktop: the rail itself is fixed to the viewport and never moves. */}
       <nav
-        className="fixed z-30 hidden max-h-[calc(100vh-3rem)] w-48 overflow-y-auto lg:block"
+        className="fixed z-30 hidden max-h-[calc(100vh-3rem)] w-44 overflow-y-auto lg:block"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
       >
         <ul className="space-y-0.5">

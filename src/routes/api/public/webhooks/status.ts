@@ -32,6 +32,11 @@ export const Route = createFileRoute("/api/public/webhooks/status")({
           return json({ error: "invalid_status", allowed: LEAD_STATUSES }, 400);
         }
 
+        // A Meta leadgen_id is digits only and bounded in length. Anything else
+        // is not a lead reference we could ever match — reject as not found,
+        // without echoing the offending input back to the caller.
+        const isValidReference = /^[0-9]{1,32}$/.test(leadReference);
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: account } = await supabaseAdmin
@@ -40,33 +45,34 @@ export const Route = createFileRoute("/api/public/webhooks/status")({
           .eq("webhook_api_key", token)
           .maybeSingle();
         if (!account) return json({ error: "invalid_api_key" }, 401);
-        if (account.status !== "active") return json({ error: "account_not_active" }, 403);
+        if (account.status !== "active") return json({ error: "account_not_active" }, 409);
 
-        // Match lead_reference against meta_leadgen_id first, then the hashed
-        // phone/email columns (hashing the raw reference the same way leads
-        // were hashed at ingest). Scoped to this account only.
+        if (!isValidReference) return json({ error: "lead_not_found" }, 404);
+
+        // Parameterised lookups only: the caller value is passed as an .eq()
+        // value and never becomes part of the filter syntax. Every query keeps
+        // the non-negotiable account_id scope so a lookup can never cross tenants.
         const { hashForMeta } = await import("@/lib/meta.server");
         const hashed = hashForMeta(leadReference);
-        const { data: exactLead } = await supabaseAdmin
-          .from("leads")
-          .select("id")
-          .eq("account_id", account.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .eq("meta_leadgen_id", leadReference)
-          .maybeSingle();
-        const { data: hashedLead } = exactLead
-          ? { data: null }
-          : await supabaseAdmin
-              .from("leads")
-              .select("id")
-              .eq("account_id", account.id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .or(`phone_hash.eq.${hashed},email_hash.eq.${hashed},phone_hash.eq.${leadReference},email_hash.eq.${leadReference}`)
-              .maybeSingle();
-        const lead = exactLead ?? hashedLead;
+
+        const findBy = async (column: "meta_leadgen_id" | "phone_hash" | "email_hash", value: string) => {
+          const { data } = await supabaseAdmin
+            .from("leads")
+            .select("id")
+            .eq("account_id", account.id)
+            .eq(column, value)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return data;
+        };
+
+        const lead =
+          (await findBy("meta_leadgen_id", leadReference)) ??
+          (await findBy("phone_hash", hashed)) ??
+          (await findBy("email_hash", hashed));
         if (!lead) return json({ error: "lead_not_found" }, 404);
+
 
         // Deliberately does NOT call Meta here — the capi-dispatcher delivers
         // asynchronously so this endpoint stays fast.
