@@ -177,11 +177,13 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    // Meta reports insights in the ad account's timezone; null it so the fetcher re-reads it.
     const { data: saved, error } = await context.supabase
       .from("accounts")
       .update({
         meta_ad_account_id: adAccountId,
         meta_dataset_id: data.datasetId,
+        meta_ad_account_timezone: null,
         status: "active",
       })
       .eq("id", data.accountId)
