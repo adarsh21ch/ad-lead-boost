@@ -186,13 +186,26 @@ function PerformancePage() {
     return ids.length > 0 ? ids : null;
   }, [accountsQuery.data, activeAdAccountId]);
 
+  // Sync health for the AdsPro account behind the selected ad account, not the
+  // latest run across every account the user owns.
+  const scopedAccountId = scopedAccountIds?.[0] ?? null;
+  const getSyncStatusFn = useServerFn(getSyncStatus);
+  const syncQuery = useQuery({
+    queryKey: ["insights-sync-status", scopedAccountId],
+    queryFn: () => getSyncStatusFn({ data: { accountId: scopedAccountId! } }),
+    enabled: Boolean(scopedAccountId),
+  });
+
   const funnelQuery = useQuery({
     queryKey: ["funnel", from, to, scopedAccountIds?.join(","), drill.map((d) => d.id).join(">")],
     queryFn: async () => {
       const toExclusive = new Date(`${to}T00:00:00.000Z`);
       toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+      // lead_attribution resolves adset/campaign by walking ad_id up the synced
+      // hierarchy in SQL — leads.campaign_id / leads.adset_id are almost always
+      // NULL because Meta's webhook never sends them.
       let leadsQuery = supabase
-        .from("leads")
+        .from("lead_attribution")
         .select("id, ad_id")
         .gte("created_at", `${from}T00:00:00.000Z`)
         .lt("created_at", toExclusive.toISOString());
@@ -206,6 +219,7 @@ function PerformancePage() {
       }
       const { data: leads, error: leadsError } = await leadsQuery.limit(5000);
       if (leadsError) throw leadsError;
+
 
       const ids = (leads ?? []).map((l) => l.id);
       const reached = new Map<string, Set<string>>();
