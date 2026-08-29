@@ -329,9 +329,11 @@ function PerformancePage() {
           <p className="text-xs text-muted-foreground">Ad data has not synced yet.</p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Ad data last updated {relativeTime(sync.finished_at ?? sync.started_at) ?? "recently"}.
+            {sync.verdict ? `${sync.verdict} · ` : ""}Ad data last updated{" "}
+            {relativeTime(sync.finished_at ?? sync.started_at) ?? "recently"}.
           </p>
         )}
+
 
         {/* Ad account: a label when there is one, a real selector when there are many */}
         {adAccounts.length > 0 && (
