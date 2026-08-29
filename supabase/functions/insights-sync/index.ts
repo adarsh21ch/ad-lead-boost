@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
 
   let accountQuery = supabase
     .from("accounts")
-    .select("id, name, meta_ad_account_id, meta_access_token_encrypted, status, token_status, meta_ad_account_timezone");
+    .select("id, name, meta_ad_account_id, meta_ad_account_name, meta_access_token_encrypted, status, token_status, meta_ad_account_timezone");
   if (onlyAccountId) accountQuery = accountQuery.eq("id", onlyAccountId);
   const { data: accounts, error: accErr } = await accountQuery;
 
@@ -304,18 +304,24 @@ Deno.serve(async (req) => {
       // Meta reports insights in the AD ACCOUNT's timezone, and lead timestamps are UTC.
       // Without this, every lead arriving before the UTC offset each day is attributed to
       // the wrong day's spend. Fetched when unknown, and refreshed on the daily run.
-      if (syncEntities || !account.meta_ad_account_timezone) {
+      if (syncEntities || !account.meta_ad_account_timezone || !account.meta_ad_account_name) {
         const acct = await graphGet(
-          `${GRAPH}/${account.meta_ad_account_id}?fields=timezone_name,currency&access_token=${token}`,
+          `${GRAPH}/${account.meta_ad_account_id}?fields=name,timezone_name,currency&access_token=${token}`,
         ) as Record<string, any>;
         metaCalls++;
         if (acct.currency) currency = acct.currency;
+        // One update for both: an ad account id is not something a human recognises, so the
+        // name is stored alongside the timezone rather than re-fetched by every screen.
+        const patch: Record<string, string> = {};
         if (acct.timezone_name && acct.timezone_name !== account.meta_ad_account_timezone) {
-          const { error } = await supabase
-            .from("accounts")
-            .update({ meta_ad_account_timezone: acct.timezone_name })
-            .eq("id", account.id);
-          if (error) throw new Error(`timezone update failed: ${error.message}`);
+          patch.meta_ad_account_timezone = acct.timezone_name;
+        }
+        if (acct.name && acct.name !== account.meta_ad_account_name) {
+          patch.meta_ad_account_name = acct.name;
+        }
+        if (Object.keys(patch).length > 0) {
+          const { error } = await supabase.from("accounts").update(patch).eq("id", account.id);
+          if (error) throw new Error(`account metadata update failed: ${error.message}`);
         }
       }
 

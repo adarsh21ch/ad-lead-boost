@@ -2161,3 +2161,67 @@ and would render alongside the new one with nothing to distinguish them. Harmles
 both tables are empty — and **the cheapest moment to fix it is before they are not.** Needs a
 `meta_ad_account_id` column on both tables, threaded through `upsert_ad_entities` /
 `upsert_ad_insights` and the fetcher. Claude's job, not Lovable's.
+
+## *** Session 9 — MULTI-AD-ACCOUNT FOUNDATION SHIPPED, PROVEN ON REAL DATA *** (2026-08-29)
+
+Adarsh's call: finish everything now, launch the ad last. `0010_multi_ad_account_foundation.sql`
+applied while `ad_entities` and `ad_insights_daily` were still EMPTY — deliberately, because
+every part of it becomes a backfill or a data-cleanup exercise once they are not.
+
+### What shipped
+- **`accounts.meta_ad_account_name`** — `act_2447097022359700` is not a thing a human
+  recognises. The name was already being fetched and thrown away by both the fetcher and
+  Lovable's validate-before-save.
+- **`meta_ad_account_id` on `ad_entities` and `ad_insights_daily`**, plus indexes. Stamped by
+  a **trigger** (`stamp_meta_ad_account`) rather than by rewriting `upsert_ad_entities` /
+  `upsert_ad_insights`: both RPCs already receive `p_account_id`, so the ad account is
+  derivable inside the database. Two large tested functions stay untouched and the Edge
+  Function needs no new argument. Stamps only when NULL, so a historical row keeps the ad
+  account it was really collected from even after the account is repointed.
+- **`accounts_meta_page_id_unique`** — partial unique index. *** This closes a real
+  correctness hole, not a UI gap: `meta-leadgen.ts` builds a page_id -> account map, so two
+  accounts claiming one Page means the last row built silently wins and leads are delivered
+  to the WRONG tenant. Nothing errors, nothing logs, and neither side can see the loss.
+  Harmless with one account per user; a cross-tenant data leak the day agency mode ships. ***
+- **`ad_insights_current` replaced** — it is `select distinct on (...) *`, and the star was
+  expanded at creation, so it does not pick up new columns by itself.
+- **`ad_performance_daily` 36 -> 38 columns** (`meta_ad_account_id`, `meta_ad_account_name`
+  after `account_id`). *** The "36 columns" tripwire from Sessions 8-9 is now a
+  38-COLUMN tripwire. ***
+- **`insights-sync` redeployed** — fetches `name` alongside `timezone_name,currency`, and
+  writes both in one patch. Condition widened to also fire when the NAME is missing.
+
+### Verified on real data, not synthetic
+| Check | Evidence |
+|---|---|
+| Names populated | Xento -> **SAGAR ADS 1**, Acme Solar -> **Nevorai** |
+| Stamping | **0 unstamped rows** in either warehouse table |
+| Segregation is real | Xento: 70 campaigns / 80 adsets / 80 ads all tagged `act_2447097022359700`; Acme Solar: 1/1/1 tagged `act_863995570089897` |
+| Views | `ad_performance_daily` = 38 cols with both new columns; `ad_insights_current` carries the column |
+| Trigger + index | both triggers present, unique index present |
+| Sync health | both accounts `ok`, 7 meta_calls (entity metadata run), no error |
+| Inventory | 10 tables, **3 views** (was 2 — `insights_sync_status` added in 0009), 5 cron jobs |
+
+### Worth knowing before the ad launches
+**SAGAR ADS 1 has real history: 70 campaigns, 80 adsets, 80 ads — all `PAUSED`.** The new
+campaign will be created alongside them. `ad_insights_daily` is still 0 rows and spend is 0
+because nothing has spent in the last 3 days, which is why `ad_performance_daily` is still
+empty. That is correct, not a fault: the view is driven from the spend side.
+
+### Answer given on multi-ad-account support
+The backend was already ~80% there — everything keys off `account_id` (the AdsPro account
+row, not the user), a user may own several rows, leads route by Page, and RLS plus the 0008
+derivation are per-account. Segregation of leads, reports and analysis was already
+structurally correct. The three genuine gaps were: warehouse provenance (now closed), the
+Page-uniqueness hole (now closed), and account-switching UI — which is build-order item 7 and
+was deliberately NOT built. The data model can now express agency mode without migrating live
+data.
+
+### `LOVABLE_PROMPT_18_AD_ACCOUNT_UX_AND_DRILLDOWN.md` — written, not yet pasted
+Name before id everywhere; picker as a dialog with one shared list component (or, failing
+that, a working back button — the current screen is a dead end); Ad performance drill-down
+campaign -> adset -> ad with creative thumbnails and `effective_status`; every screen renders
+a LIST of accounts rather than assuming one. Carries the arithmetic rules forward: never sum
+across levels, sum ingredients before dividing, absence is not zero.
+
+Prompt 17 was reported by Lovable as **preview only, NOT published**. Prompt 18 requires publish.
