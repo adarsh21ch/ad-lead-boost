@@ -1,0 +1,251 @@
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listMetaPixels } from "@/lib/adspro.functions";
+import {
+  getSyncStatus,
+  requestSyncNow,
+  validateAndSaveDataset,
+} from "@/lib/connection.functions";
+import { metaErrorCopy } from "@/lib/meta-error-copy";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+
+export type ConnectionAccount = {
+  id: string;
+  meta_ad_account_id?: string | null;
+  meta_dataset_id?: string | null;
+};
+
+function relativeTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return "just now";
+  const units: Array<[number, string]> = [
+    [60, "minute"],
+    [3600, "hour"],
+    [86400, "day"],
+  ];
+  if (seconds < 3600) return plural(Math.floor(seconds / units[0]![0]), "minute");
+  if (seconds < 86400) return plural(Math.floor(seconds / units[1]![0]), "hour");
+  return plural(Math.floor(seconds / units[2]![0]), "day");
+}
+
+function plural(n: number, unit: string) {
+  return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+}
+
+/** Ad account — current value plus a link into the existing picker (no second picker). */
+function AdAccountCard({ account }: { account: ConnectionAccount }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Ad account</CardTitle>
+        <CardDescription>Where spend and performance data are read from.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="font-mono text-sm">{account.meta_ad_account_id ?? "Not set"}</p>
+        <Button asChild variant="outline" size="sm">
+          <Link
+            to="/dashboard/select-ad-account"
+            search={{ account: account.id, only: "adaccount" }}
+          >
+            Change ad account
+          </Link>
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Spend and performance data will now come from the new ad account. Your leads are
+          unaffected — those arrive from your connected Facebook Page.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Dataset — lists datasets on the connected ad account and saves only the dataset. */
+function DatasetCard({ account }: { account: ConnectionAccount }) {
+  const queryClient = useQueryClient();
+  const listPixelsFn = useServerFn(listMetaPixels);
+  const saveDatasetFn = useServerFn(validateAndSaveDataset);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const pixelsQuery = useQuery({
+    queryKey: ["connection-datasets", account.id, account.meta_ad_account_id],
+    queryFn: () =>
+      listPixelsFn({
+        data: { accountId: account.id, adAccountId: account.meta_ad_account_id! },
+      }),
+    enabled: open && Boolean(account.meta_ad_account_id),
+    retry: false,
+  });
+
+  const datasets = pixelsQuery.data?.ok ? pixelsQuery.data.data : [];
+  const listError = pixelsQuery.data && !pixelsQuery.data.ok ? pixelsQuery.data.error : null;
+
+  const save = async (datasetId: string) => {
+    setSaving(datasetId);
+    setError(null);
+    try {
+      const result = await saveDatasetFn({ data: { accountId: account.id, datasetId } });
+      if (!result.ok) {
+        setError(metaErrorCopy(result.error));
+        return;
+      }
+      toast.success(`Dataset saved: ${result.account.meta_dataset_id}`);
+      setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the dataset");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Dataset (Pixel)</CardTitle>
+        <CardDescription>Where Conversions API events are delivered.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="font-mono text-sm">{account.meta_dataset_id ?? "Not set"}</p>
+        {!open ? (
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            Change dataset
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            {pixelsQuery.isPending ? (
+              <p className="text-sm text-muted-foreground">Loading datasets…</p>
+            ) : listError ? (
+              <p className="text-sm text-destructive">{metaErrorCopy(listError)}</p>
+            ) : datasets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No datasets found on this ad account or its Business portfolio.
+              </p>
+            ) : (
+              datasets.map((dataset) => (
+                <div
+                  key={dataset.id}
+                  className="flex items-center justify-between gap-4 rounded-md border px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{dataset.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{dataset.id}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={saving !== null || dataset.id === account.meta_dataset_id}
+                    onClick={() => save(dataset.id)}
+                  >
+                    {saving === dataset.id
+                      ? "Checking…"
+                      : dataset.id === account.meta_dataset_id
+                        ? "In use"
+                        : "Use this dataset"}
+                  </Button>
+                </div>
+              ))
+            )}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Sync health — verdict straight from the view, "Sync now" through the RPC. */
+function SyncHealthCard({ account }: { account: ConnectionAccount }) {
+  const getStatusFn = useServerFn(getSyncStatus);
+  const requestSyncFn = useServerFn(requestSyncNow);
+  const [polling, setPolling] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const statusQuery = useQuery({
+    queryKey: ["insights-sync-status", account.id],
+    queryFn: () => getStatusFn({ data: { accountId: account.id } }),
+    refetchInterval: polling ? 3_000 : 60_000,
+  });
+
+  const status = statusQuery.data;
+
+  useEffect(() => {
+    if (!polling) return;
+    const stop = setTimeout(() => setPolling(false), 30_000);
+    return () => clearTimeout(stop);
+  }, [polling]);
+
+  const syncNow = async () => {
+    setNote(null);
+    try {
+      const result = await requestSyncFn({ data: { accountId: account.id, days: 7 } });
+      if (result?.ok && result.queued) {
+        setNote("Sync started — waiting for the result…");
+        setPolling(true);
+        return;
+      }
+      if (result?.reason === "cooldown") {
+        setNote(`Just synced, try again in ${result.retry_after_seconds ?? 60} seconds`);
+        return;
+      }
+      setNote("Could not start a sync right now. Please try again.");
+    } catch {
+      setNote("Could not start a sync right now. Please try again.");
+    }
+  };
+
+  const last = relativeTime(status?.finished_at ?? status?.started_at ?? null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Data collection</CardTitle>
+        <CardDescription>Whether AdsPro is still pulling spend from Meta.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {statusQuery.isPending ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : !status ? (
+          <p className="text-sm text-muted-foreground">
+            No sync has run yet for this account.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm font-medium">{status.verdict ?? "Unknown"}</p>
+            <p className="text-sm text-muted-foreground">
+              Last sync {last ?? "—"}
+              {status.rows_written != null ? ` · ${status.rows_written} rows written` : ""}
+            </p>
+          </>
+        )}
+        <div className="flex items-center gap-3 pt-1">
+          <Button size="sm" variant="outline" onClick={syncNow} disabled={polling}>
+            {polling ? "Syncing…" : "Sync now"}
+          </Button>
+          {note ? <span className="text-xs text-muted-foreground">{note}</span> : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ConnectionSettings({ account }: { account: ConnectionAccount }) {
+  return (
+    <div className="space-y-4">
+      <AdAccountCard account={account} />
+      <DatasetCard account={account} />
+      <SyncHealthCard account={account} />
+    </div>
+  );
+}
