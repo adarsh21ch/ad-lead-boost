@@ -1828,3 +1828,24 @@ This is the right pattern; keep it for every future data screen.
 Git: 4 commits on branch `phase-a-insights-warehouse`, pushed to
 `github.com/adarsh21ch/ad-lead-boost` (Lovable's repo, separate branch — see the
 unrelated-history hazard note above before ever merging it to main).
+
+### Session 8 — OPEN UI BUG on /performance: "% of previous step" is the wrong maths
+Live production, 2026-08-29: `Leads 2 -> Contacted 1 (50% of previous step) -> Qualified 2
+(**200% of previous step**) -> Booked 0 -> Purchased 0 (—)`.
+
+**The counts are correct. The percentage is the bug.** AdsPro statuses are set independently
+— a lead can be marked `qualified` without ever being marked `contacted` — so the funnel
+stages are NOT nested subsets and a step can legitimately exceed the one before it.
+"% of previous step" therefore produces values above 100% and reads as broken software.
+
+Fix is presentation-only: express every step as a percentage of the LEADS count (the first
+step), never of the preceding step. Cannot exceed 100%, stays meaningful when a stage is
+skipped. Do NOT change the "ever reached" counting — that is correct.
+
+Same turn, minor: with zero insights rows the provenance footer renders as a sentence made
+of dashes ("Attribution: — · … · Last updated —."). Hide the footer until at least one
+insights row exists.
+
+Two things the screenshot incidentally CONFIRMED, both good: RLS scoping works (the signed-in
+Xento owner sees 2 leads, not the 3 in the database — Acme Solar's is correctly invisible),
+and "ever reached" dedup works (5 `qualified` status_events across 2 leads renders as 2).
