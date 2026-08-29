@@ -281,7 +281,7 @@ Content-Type: application/json
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="w-full space-y-6">
 
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Integration</h1>
@@ -407,7 +407,7 @@ Content-Type: application/json
             </CardContent>
           </Card>
         ) : (
-          <div className="flex gap-8">
+          <div className="flex gap-6">
             <SectionRail items={RAIL_ITEMS} onJump={openSection} />
             <div className="min-w-0 flex-1 space-y-6">
               <h2 className="text-lg font-semibold tracking-tight">Connection settings</h2>

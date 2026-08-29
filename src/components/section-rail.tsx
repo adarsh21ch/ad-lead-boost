@@ -146,7 +146,7 @@ export function SectionRail({
 
       {/* Desktop: the rail itself is fixed to the viewport and never moves. */}
       <nav
-        className="fixed z-30 hidden max-h-[calc(100vh-3rem)] w-48 overflow-y-auto lg:block"
+        className="fixed z-30 hidden max-h-[calc(100vh-3rem)] w-44 overflow-y-auto lg:block"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
       >
         <ul className="space-y-0.5">
