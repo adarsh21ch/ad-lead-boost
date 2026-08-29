@@ -15,7 +15,13 @@ import { adAccountLabel } from "@/lib/ad-account-label";
 import { LEAD_STATUSES, STATUS_TO_META_EVENT } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import { FacebookPageCard, type PageRow } from "@/components/facebook-page-card";
-import { ConnectionSettings } from "@/components/connection-settings";
+import {
+  AdAccountCard,
+  DatasetCard,
+  SyncHealthCard,
+  type ConnectionAccount,
+} from "@/components/connection-settings";
+import { SectionRail, type RailGroup } from "@/components/section-rail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +97,71 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+/** Section anchor — scroll-margin keeps the heading clear of sticky headers. */
+function Section({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="scroll-mt-24">
+      {children}
+    </section>
+  );
+}
+
+/** Collapsed-by-default developer reference. */
+function Disclosure({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex w-full items-center justify-between gap-4 text-left"
+        >
+          <CardTitle className="text-base">{title}</CardTitle>
+          <span className="text-xs text-muted-foreground">{open ? "Hide" : "Show"}</span>
+        </button>
+      </CardHeader>
+      {open ? <CardContent>{children}</CardContent> : null}
+    </Card>
+  );
+}
+
+const RAIL_GROUPS: RailGroup[] = [
+  {
+    label: "Connection",
+    items: [
+      { id: "page", label: "Facebook Page" },
+      { id: "adaccount", label: "Ad account" },
+      { id: "pixel", label: "Pixel (dataset)" },
+    ],
+  },
+  { label: "Data", items: [{ id: "data", label: "Data collection" }] },
+  {
+    label: "CRM setup",
+    items: [
+      { id: "webhook", label: "Webhook endpoint" },
+      { id: "contract", label: "Send status updates" },
+      { id: "zapier", label: "Zapier" },
+    ],
+  },
+  {
+    label: "Testing",
+    items: [
+      { id: "test", label: "Send test event" },
+      { id: "deliveries", label: "Recent deliveries" },
+    ],
+  },
+];
+
 function IntegrationPage() {
   const queryClient = useQueryClient();
   const getAccountFn = useServerFn(getIntegrationAccount);
@@ -105,6 +176,7 @@ function IntegrationPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [disclosed, setDisclosed] = useState({ contract: false, zapier: false });
 
   // A user may own more than one AdsPro account; render the list and let them pick.
   const listAccountsFn = useServerFn(listMyAccounts);
@@ -121,6 +193,18 @@ function IntegrationPage() {
     enabled: myAccounts !== undefined,
   });
 
+  const connectionAccount: ConnectionAccount = {
+    id: (account?.id ?? "") as string,
+    meta_ad_account_id:
+      (account as { meta_ad_account_id?: string | null } | undefined)?.meta_ad_account_id ?? null,
+    meta_ad_account_name:
+      (account as { meta_ad_account_name?: string | null } | undefined)?.meta_ad_account_name ??
+      null,
+    meta_dataset_id:
+      (account as { meta_dataset_id?: string | null } | undefined)?.meta_dataset_id ?? null,
+    meta_dataset_name:
+      (account as { meta_dataset_name?: string | null } | undefined)?.meta_dataset_name ?? null,
+  };
 
   const ready = Boolean(account && account.status === "active" && account.meta_dataset_id);
   const tokenHealth = getTokenHealth(account ?? {});
@@ -205,9 +289,14 @@ Content-Type: application/json
     }
   };
 
+  const openSection = (id: string) => {
+    if (id === "contract" || id === "zapier") setDisclosed((prev) => ({ ...prev, [id]: true }));
+  };
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Integration</h1>
           <p className="text-sm text-muted-foreground">
@@ -251,12 +340,21 @@ Content-Type: application/json
 
 
 
-        {account && tokenInvalid && (
+        {/* Meta connection: a thin strip when healthy, a full red card when not. */}
+        {account && (tokenInvalid || tokenExpired) ? (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
-            <p className="font-semibold text-destructive">Your Meta connection is no longer valid.</p>
+            <p className="font-semibold text-destructive">
+              {tokenInvalid
+                ? "Your Meta connection is no longer valid."
+                : "Your Meta connection has expired."}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Lead outcomes are not reaching Meta and spend data has stopped updating. Reconnect to
               resume.
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This is your Meta login. The Page, ad account and pixel below are the things it gives
+              AdsPro access to.
             </p>
             {tokenState?.token_last_error && (
               <p className="mt-2 font-mono text-xs break-words text-muted-foreground">
@@ -267,7 +365,32 @@ Content-Type: application/json
               {reconnecting ? "Redirecting…" : "Reconnect Meta"}
             </Button>
           </div>
-        )}
+        ) : account ? (
+          <div className="rounded-md border px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium">Meta connection</span>
+              <span className="text-muted-foreground">
+                ·{" "}
+                {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null
+                  ? `Connected — expires in ${tokenHealth.daysRemaining} ${tokenHealth.daysRemaining === 1 ? "day" : "days"}`
+                  : "Connected — leads, spend and event delivery are all authorised."}
+              </span>
+              <button
+                type="button"
+                onClick={reconnectMeta}
+                disabled={reconnecting}
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This is your Meta login. The Page, ad account and pixel below are the things it gives
+              AdsPro access to.
+            </p>
+          </div>
+        ) : null}
+
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -293,81 +416,46 @@ Content-Type: application/json
             </CardContent>
           </Card>
         ) : (
-          <>
-            <h2 className="pt-2 text-lg font-semibold tracking-tight">Connection settings</h2>
+          <div className="flex gap-8">
+            <SectionRail groups={RAIL_GROUPS} onJump={openSection} />
+            <div className="min-w-0 flex-1 space-y-6">
+              <h2 className="text-lg font-semibold tracking-tight">Connection settings</h2>
 
-            {/* 1. Meta connection — is the login alive at all. */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Meta connection</CardTitle>
-                <CardDescription>The Meta login everything else depends on.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-medium">
-                  {tokenInvalid
-                    ? "Not valid — reconnect required"
-                    : tokenExpired
-                      ? "Expired — reconnect required"
-                      : tokenHealth.state === "expiring"
-                        ? "Connected — expiring soon"
-                        : "Connected"}
-                </p>
-                {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null ? (
-                  <p className="text-sm text-muted-foreground">
-                    Your Meta login expires in {tokenHealth.daysRemaining}{" "}
-                    {tokenHealth.daysRemaining === 1 ? "day" : "days"}. Reconnect to avoid a gap in
-                    spend data and event delivery.
-                  </p>
-                ) : tokenInvalid || tokenExpired ? (
-                  <p className="text-sm text-muted-foreground">
-                    Lead outcomes are not reaching Meta and spend data has stopped updating.
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Leads, spend data and event delivery are all authorised.
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={reconnectMeta}
-                  disabled={reconnecting}
-                >
-                  {reconnecting ? "Redirecting…" : "Reconnect Meta"}
-                </Button>
-              </CardContent>
-            </Card>
+              {/* 1. Facebook Page — where leads come IN. */}
+              <Section id="page">
+                <FacebookPageCard
+                  account={{
+                    meta_page_id:
+                      (account as { meta_page_id?: string | null }).meta_page_id ?? null,
+                    page_subscribe_status:
+                      (account as { page_subscribe_status?: string | null })
+                        .page_subscribe_status ?? null,
+                    page_subscribe_error:
+                      (account as { page_subscribe_error?: string | null })
+                        .page_subscribe_error ?? null,
+                    page_subscribed_at:
+                      (account as { page_subscribed_at?: string | null }).page_subscribed_at ??
+                      null,
+                  }}
+                  storedPages={storedPages as PageRow[] | undefined}
+                  onReconnect={reconnectMeta}
+                  reconnecting={reconnecting}
+                />
+              </Section>
 
-            {/* 2. Facebook Page — where leads come IN. */}
-            <FacebookPageCard
-              account={{
-                meta_page_id: (account as { meta_page_id?: string | null }).meta_page_id ?? null,
-                page_subscribe_status:
-                  (account as { page_subscribe_status?: string | null }).page_subscribe_status ??
-                  null,
-                page_subscribe_error:
-                  (account as { page_subscribe_error?: string | null }).page_subscribe_error ??
-                  null,
-                page_subscribed_at:
-                  (account as { page_subscribed_at?: string | null }).page_subscribed_at ?? null,
-              }}
-              storedPages={storedPages as PageRow[] | undefined}
-              onReconnect={reconnectMeta}
-              reconnecting={reconnecting}
-            />
+              {/* 2. Ad account → 3. Pixel → 4. Data collection. */}
+              <Section id="adaccount">
+                <AdAccountCard account={connectionAccount} />
+              </Section>
+              <Section id="pixel">
+                <DatasetCard account={connectionAccount} />
+              </Section>
+              <Section id="data">
+                <SyncHealthCard account={connectionAccount} />
+              </Section>
+              <h2 className="pt-2 text-lg font-semibold tracking-tight">CRM setup</h2>
 
-            {/* 3. Ad account (read) → 4. Pixel (back) → 5. Data collection (health). */}
-            <ConnectionSettings
-              account={{
-                id: account!.id as string,
-                meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
-                meta_ad_account_name: (account as { meta_ad_account_name?: string | null }).meta_ad_account_name ?? null,
-                meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
-                meta_dataset_name: (account as { meta_dataset_name?: string | null }).meta_dataset_name ?? null,
-              }}
-            />
-
-
+              <Section id="webhook">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Your webhook endpoint</CardTitle>
@@ -417,13 +505,17 @@ Content-Type: application/json
                 </div>
               </CardContent>
             </Card>
+              </Section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Send status updates</CardTitle>
-                <CardDescription>The exact request contract.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <Section id="contract">
+                <Disclosure
+                  title="Send status updates — the exact request contract"
+                  open={disclosed.contract}
+                  onToggle={() =>
+                    setDisclosed((p) => ({ ...p, contract: !p.contract }))
+                  }
+                >
+                  <div className="space-y-4">
                 <div className="flex items-start gap-2">
                   <pre className="flex-1 overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">
                     {contract}
@@ -465,14 +557,17 @@ Content-Type: application/json
                     <code>400</code> bad status value
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+                  </div>
+                </Disclosure>
+              </Section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Set up with Zapier</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <Section id="zapier">
+                <Disclosure
+                  title="Set up with Zapier — 7 steps"
+                  open={disclosed.zapier}
+                  onToggle={() => setDisclosed((p) => ({ ...p, zapier: !p.zapier }))}
+                >
+                  <div className="space-y-4">
                 <ol className="list-decimal space-y-2 pl-5 text-sm">
                   <li>
                     In Zapier, create a Zap. Trigger = your CRM (e.g. "Deal stage changed" in
@@ -514,9 +609,13 @@ Content-Type: application/json
                     <CopyButton value={curlExample} label="cURL" />
                   </div>
                 </details>
-              </CardContent>
-            </Card>
+                  </div>
+                </Disclosure>
+              </Section>
 
+              <h2 className="pt-2 text-lg font-semibold tracking-tight">Testing</h2>
+
+              <Section id="test">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Send test event</CardTitle>
@@ -575,10 +674,13 @@ Content-Type: application/json
                 )}
               </CardContent>
             </Card>
+              </Section>
 
+              <Section id="deliveries">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Recent deliveries</CardTitle>
+                <CardDescription>Newest first — the 20 most recent events.</CardDescription>
               </CardHeader>
               <CardContent>
                 {!deliveries?.length ? (
@@ -589,7 +691,7 @@ Content-Type: application/json
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Time</TableHead>
+                        <TableHead>Time (newest first)</TableHead>
                         <TableHead>Event</TableHead>
                         <TableHead>HTTP</TableHead>
                         <TableHead>Status</TableHead>
@@ -655,7 +757,10 @@ Content-Type: application/json
                 )}
               </CardContent>
             </Card>
-          </>
+              </Section>
+            </div>
+          </div>
+
         )}
       </div>
     </AppShell>

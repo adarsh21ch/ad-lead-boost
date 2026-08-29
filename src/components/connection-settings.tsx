@@ -51,7 +51,7 @@ function plural(n: number, unit: string) {
  * user never leaves Integration. The list itself is the shared AdAccountList,
  * the same component the /dashboard/select-ad-account route renders.
  */
-function AdAccountCard({ account }: { account: ConnectionAccount }) {
+export function AdAccountCard({ account }: { account: ConnectionAccount }) {
   const queryClient = useQueryClient();
   const saveAdAccountFn = useServerFn(validateAndSaveAdAccount);
   const [open, setOpen] = useState(false);
@@ -99,9 +99,8 @@ function AdAccountCard({ account }: { account: ConnectionAccount }) {
           Change ad account
         </Button>
         <p className="text-xs text-muted-foreground">
-          Spend and performance data will now come from the new ad account. Your leads are
-          unaffected — those arrive from your connected Facebook Page, and your dataset stays as it
-          is.
+          Spend and performance data are read from this ad account. Your leads are unaffected —
+          those arrive from your Facebook Page.
         </p>
 
         <Dialog
@@ -115,7 +114,9 @@ function AdAccountCard({ account }: { account: ConnectionAccount }) {
             <DialogHeader>
               <DialogTitle>Change ad account</DialogTitle>
               <DialogDescription>
-                Your dataset and Facebook Page are left untouched.
+                Spend and performance data will now come from the new ad account. Your leads are
+                unaffected — those arrive from your connected Facebook Page, and your dataset stays
+                as it is.
               </DialogDescription>
             </DialogHeader>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -151,7 +152,7 @@ const EVENTS_MANAGER_URL = "https://business.facebook.com/events_manager2/";
  * plainly instead of implying nothing is connected. The stored selection is never
  * auto-cleared: delivery keeps working through the connected pixel.
  */
-function DatasetCard({ account }: { account: ConnectionAccount }) {
+export function DatasetCard({ account }: { account: ConnectionAccount }) {
   const queryClient = useQueryClient();
   const listPixelsFn = useServerFn(listMetaPixels);
   const saveDatasetFn = useServerFn(validateAndSaveDataset);
@@ -317,7 +318,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
 
 
 /** Sync health — verdict straight from the view, "Sync now" through the RPC. */
-function SyncHealthCard({ account }: { account: ConnectionAccount }) {
+export function SyncHealthCard({ account }: { account: ConnectionAccount }) {
   const getStatusFn = useServerFn(getSyncStatus);
   const requestSyncFn = useServerFn(requestSyncNow);
   const [polling, setPolling] = useState(false);

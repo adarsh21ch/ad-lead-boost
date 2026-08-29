@@ -473,10 +473,13 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
       .select(
         "id, meta_event_name, http_status, meta_response, retry_count, delivered_at, is_test, status_event_id, status_events!inner(created_at, status, dispatch_status)",
       )
-      .order("created_at", { ascending: false, referencedTable: "status_events" })
+      // capi_delivery_logs has no own timestamp, so order the PARENT rows by the
+      // embedded status_events.created_at (newest first). The previous
+      // `referencedTable` form only sorted embedded rows, leaving the log unordered.
+      .order("status_events(created_at)", { ascending: false })
       .limit(20);
     if (error) throw error;
-    return (data ?? []).map((row) => {
+    const rows = (data ?? []).map((row) => {
       const ev = (
         row as unknown as {
           status_events?: { created_at?: string; status?: string; dispatch_status?: string };
@@ -495,6 +498,11 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
         attempt: (row.retry_count ?? 0) + 1,
       };
     });
+    // Belt and braces: guarantee the rendered order is strictly newest first.
+    return rows.sort(
+      (a, b) =>
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+    );
   });
 
 /** Pages discovered for the caller's account (read-only; writes happen in the API routes). */
