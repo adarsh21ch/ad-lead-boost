@@ -479,7 +479,7 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
       .order("status_events(created_at)", { ascending: false })
       .limit(20);
     if (error) throw error;
-    return (data ?? []).map((row) => {
+    const rows = (data ?? []).map((row) => {
       const ev = (
         row as unknown as {
           status_events?: { created_at?: string; status?: string; dispatch_status?: string };
