@@ -21,7 +21,7 @@ import {
   SyncHealthCard,
   type ConnectionAccount,
 } from "@/components/connection-settings";
-import { SectionRail, type RailGroup } from "@/components/section-rail";
+import { SectionRail, type RailItem } from "@/components/section-rail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,31 +135,17 @@ function Disclosure({
   );
 }
 
-const RAIL_GROUPS: RailGroup[] = [
-  {
-    label: "Connection",
-    items: [
-      { id: "page", label: "Facebook Page" },
-      { id: "adaccount", label: "Ad account" },
-      { id: "pixel", label: "Pixel (dataset)" },
-    ],
-  },
-  { label: "Data", items: [{ id: "data", label: "Data collection" }] },
-  {
-    label: "CRM setup",
-    items: [
-      { id: "webhook", label: "Webhook endpoint" },
-      { id: "contract", label: "Send status updates" },
-      { id: "zapier", label: "Zapier" },
-    ],
-  },
-  {
-    label: "Testing",
-    items: [
-      { id: "test", label: "Send test event" },
-      { id: "deliveries", label: "Recent deliveries" },
-    ],
-  },
+/** One flat list — no group headers, no extra decision for the user. */
+const RAIL_ITEMS: RailItem[] = [
+  { id: "page", label: "Facebook Page" },
+  { id: "adaccount", label: "Ad account" },
+  { id: "pixel", label: "Pixel (dataset)" },
+  { id: "data", label: "Data collection" },
+  { id: "webhook", label: "Webhook endpoint" },
+  { id: "contract", label: "Send status updates" },
+  { id: "zapier", label: "Zapier" },
+  { id: "test", label: "Send test event" },
+  { id: "deliveries", label: "Recent deliveries" },
 ];
 
 function IntegrationPage() {
@@ -417,7 +403,7 @@ Content-Type: application/json
           </Card>
         ) : (
           <div className="flex gap-8">
-            <SectionRail groups={RAIL_GROUPS} onJump={openSection} />
+            <SectionRail items={RAIL_ITEMS} onJump={openSection} />
             <div className="min-w-0 flex-1 space-y-6">
               <h2 className="text-lg font-semibold tracking-tight">Connection settings</h2>
 
