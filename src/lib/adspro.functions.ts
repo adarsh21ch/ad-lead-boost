@@ -399,8 +399,20 @@ export const listMyAccountsDetailed = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: true });
     if (error) throw error;
-    return data ?? [];
+    const rows = data ?? [];
+
+    // Human-readable Facebook Page names, resolved from the discovered pages table.
+    const { data: pages } = await context.supabase
+      .from("meta_pages")
+      .select("page_id, page_name");
+    const nameByPageId = new Map((pages ?? []).map((p) => [p.page_id, p.page_name]));
+
+    return rows.map((row) => ({
+      ...row,
+      page_name: row.meta_page_id ? nameByPageId.get(row.meta_page_id) ?? null : null,
+    }));
   });
+
 
 
 export const getIntegrationAccount = createServerFn({ method: "GET" })
