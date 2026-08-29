@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getTokenHealth } from "@/lib/token-health";
-import { adAccountPrimary, adAccountSecondary } from "@/lib/ad-account-label";
+import { adAccountPrimary } from "@/lib/ad-account-label";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard/")({
@@ -72,6 +72,9 @@ type AccountRow = {
   meta_ad_account_id: string | null;
   meta_ad_account_name?: string | null;
   meta_dataset_id: string | null;
+  meta_dataset_name?: string | null;
+  meta_page_id?: string | null;
+  page_name?: string | null;
   page_subscribe_status?: string | null;
   token_status?: string | null;
   token_last_ok_at?: string | null;
@@ -211,7 +214,7 @@ function AccountBlock({
         >
           <p className="font-semibold text-destructive">Lead syncing has stopped.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your Meta connection for {account.name} is no longer valid, so lead outcomes are not
+            Your Meta connection is no longer valid, so lead outcomes are not
             reaching Meta. Reconnect to resume.
           </p>
           {brokenSince && (
@@ -249,12 +252,17 @@ function AccountBlock({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{account.name}</CardTitle>
+            <CardTitle>
+              {adAccountPrimary({
+                id: account.meta_ad_account_id,
+                name: account.meta_ad_account_name,
+              }) ?? account.name}
+            </CardTitle>
             <Badge variant={account.status === "active" ? "default" : "secondary"}>
-              {account.status}
+              {account.status === "active" ? "Connected" : account.status}
             </Badge>
           </div>
-          <CardDescription>Your connected Meta workspace</CardDescription>
+          <CardDescription>Workspace: {account.name}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {tokenStatus === "invalid" ? (
@@ -281,31 +289,25 @@ function AccountBlock({
 
           <div className="flex items-start justify-between gap-4">
             <span className="text-muted-foreground">Ad account</span>
-            <span className="text-right">
+            <span className="text-right font-medium">
               {adAccountPrimary({
                 id: account.meta_ad_account_id,
                 name: account.meta_ad_account_name,
-              }) ?? "—"}
-              {adAccountSecondary({
-                id: account.meta_ad_account_id,
-                name: account.meta_ad_account_name,
-              }) ? (
-                <span className="block font-mono text-xs text-muted-foreground">
-                  {account.meta_ad_account_id}
-                </span>
-              ) : null}
+              }) ?? "Not connected"}
             </span>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Dataset</span>
-            <span className="font-mono">{account.meta_dataset_id ?? "—"}</span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="text-muted-foreground">Pixel (dataset)</span>
+            <span className="text-right font-medium">
+              {account.meta_dataset_name ?? (account.meta_dataset_id ? "Selected" : "Not selected")}
+            </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Page</span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="text-muted-foreground">Facebook Page</span>
             {pageStatus === "subscribed" ? (
-              <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                Connected ✓
+              <span className="text-right font-medium text-emerald-600 dark:text-emerald-400">
+                {account.page_name ?? "Connected"} ✓
               </span>
             ) : pageStatus === "failed" ? (
               <Link to="/dashboard/integration" className="font-medium text-destructive underline">
@@ -327,7 +329,7 @@ function AccountBlock({
           )}
           {account.status === "active" && !account.meta_dataset_id && (
             <Button variant="outline" className="mt-2" onClick={onChooseAdAccount}>
-              Choose ad account & dataset
+              Choose ad account & pixel
             </Button>
           )}
           <div className="mt-3 flex items-center gap-2">

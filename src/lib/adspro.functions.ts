@@ -174,6 +174,7 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
     adAccountId: string;
     datasetId: string;
     adAccountName?: string | null;
+    datasetName?: string | null;
   }) => {
     if (!data?.accountId || !data?.adAccountId || !data?.datasetId) {
       throw new Error("accountId, adAccountId and datasetId are required");
@@ -190,12 +191,13 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
         meta_ad_account_id: adAccountId,
         meta_ad_account_name: adAccountName,
         meta_dataset_id: data.datasetId,
+        meta_dataset_name: data.datasetName?.trim() || null,
         meta_ad_account_timezone: null,
         status: "active",
       })
       .eq("id", data.accountId)
       .eq("owner_user_id", context.userId)
-      .select("id, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
+      .select("id, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name")
       .maybeSingle();
 
     if (error) {
@@ -382,7 +384,7 @@ export const listMyAccounts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
-      .select("id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
+      .select("id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name")
       .order("created_at", { ascending: true });
     if (error) throw error;
     return data ?? [];
@@ -397,8 +399,20 @@ export const listMyAccountsDetailed = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: true });
     if (error) throw error;
-    return data ?? [];
+    const rows = data ?? [];
+
+    // Human-readable Facebook Page names, resolved from the discovered pages table.
+    const { data: pages } = await context.supabase
+      .from("meta_pages")
+      .select("page_id, page_name");
+    const nameByPageId = new Map((pages ?? []).map((p) => [p.page_id, p.page_name]));
+
+    return rows.map((row) => ({
+      ...row,
+      page_name: row.meta_page_id ? nameByPageId.get(row.meta_page_id) ?? null : null,
+    }));
   });
+
 
 
 export const getIntegrationAccount = createServerFn({ method: "GET" })
@@ -410,7 +424,7 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
     let query = context.supabase
       .from("accounts")
       .select(
-        "id, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
+        "id, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
       );
     if (data.accountId) query = query.eq("id", data.accountId);
     const { data: rows, error } = await query
@@ -502,7 +516,7 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("accounts")
       .select(
-        "id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
+        "id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name, meta_page_id, meta_token_expires_at, page_subscribe_status, page_subscribed_at",
       )
       .order("created_at", { ascending: true })
       .limit(1);

@@ -28,6 +28,7 @@ export type ConnectionAccount = {
   meta_ad_account_id?: string | null;
   meta_ad_account_name?: string | null;
   meta_dataset_id?: string | null;
+  meta_dataset_name?: string | null;
 };
 
 function relativeTime(iso: string | null | undefined): string | null {
@@ -173,7 +174,7 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
         setError(metaErrorCopy(result.error));
         return;
       }
-      toast.success(`Dataset saved: ${result.account.meta_dataset_id}`);
+      toast.success(`Pixel saved: ${result.account.meta_dataset_name ?? result.account.meta_dataset_id}`);
       setOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["integration-account"] });
       await queryClient.invalidateQueries({ queryKey: ["my-account"] });
@@ -187,11 +188,11 @@ function DatasetCard({ account }: { account: ConnectionAccount }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Dataset (Pixel)</CardTitle>
+        <CardTitle className="text-base">Pixel (dataset)</CardTitle>
         <CardDescription>Where Conversions API events are delivered.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="font-mono text-sm">{account.meta_dataset_id ?? "Not set"}</p>
+        <p className="text-sm font-medium">{account.meta_dataset_name ?? (account.meta_dataset_id ? "Selected" : "Not set")}</p>
         {!open ? (
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
             Change dataset
