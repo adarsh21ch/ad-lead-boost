@@ -329,7 +329,8 @@ Content-Type: application/json
         {/* Meta connection: a thin strip when healthy, a full red card when not. */}
         {account && (tokenInvalid || tokenExpired) ? (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
-            <p className="font-semibold text-destructive">
+            <p className="flex items-center gap-2 font-semibold text-destructive">
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-destructive" />
               {tokenInvalid
                 ? "Your Meta connection is no longer valid."
                 : "Your Meta connection has expired."}
@@ -355,8 +356,12 @@ Content-Type: application/json
           <div className="rounded-md border px-4 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium">Meta connection</span>
-              <span className="text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
                 ·{" "}
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-full bg-emerald-500"
+                />
                 {tokenHealth.state === "expiring" && tokenHealth.daysRemaining != null
                   ? `Connected — expires in ${tokenHealth.daysRemaining} ${tokenHealth.daysRemaining === 1 ? "day" : "days"}`
                   : "Connected — leads, spend and event delivery are all authorised."}
@@ -367,7 +372,7 @@ Content-Type: application/json
                 disabled={reconnecting}
                 className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
-                {reconnecting ? "Redirecting…" : "Reconnect Meta"}
+                {reconnecting ? "Redirecting…" : "Manage connection"}
               </button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
