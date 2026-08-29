@@ -422,13 +422,17 @@ Content-Type: application/json
                 </div>
               </CardContent>
             </Card>
+              </Section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Send status updates</CardTitle>
-                <CardDescription>The exact request contract.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <Section id="contract">
+                <Disclosure
+                  title="Send status updates — the exact request contract"
+                  open={disclosed.contract}
+                  onToggle={() =>
+                    setDisclosed((p) => ({ ...p, contract: !p.contract }))
+                  }
+                >
+                  <div className="space-y-4">
                 <div className="flex items-start gap-2">
                   <pre className="flex-1 overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">
                     {contract}
