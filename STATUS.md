@@ -2225,3 +2225,49 @@ a LIST of accounts rather than assuming one. Carries the arithmetic rules forwar
 across levels, sum ingredients before dividing, absence is not zero.
 
 Prompt 17 was reported by Lovable as **preview only, NOT published**. Prompt 18 requires publish.
+
+### Session 9 — PROMPT 18 SHIPPED AND PUBLISHED, VERIFIED FROM THE DB (2026-08-29 06:35Z)
+
+Lovable replied with one line and did NOT answer the 10 definition-of-done items — the old
+pattern. Verified independently instead. **Every checkable claim held; no corrections needed.**
+
+| Claim | How checked | Result |
+|---|---|---|
+| "Zero migrations" | full object inventory | 10 tables, **3 views**, 8 policies, 5 cron jobs, `ad_performance_daily` **38 columns**, 2 stamp triggers, page unique index — **identical to before** |
+| Names shown everywhere | `accounts` | `SAGAR ADS 1` / `Nevorai` intact, not overwritten |
+| **Dataset not clobbered** | `accounts` | Xento `1293470716241461`, Acme `1849245963151995` — **unchanged** |
+| Timezone not spuriously nulled | `accounts` | both still `Asia/Kolkata` |
+| `LEAD_ENRICHMENT_ENABLED` untouched | behavioural | leads still 3, `ad_id` still 0, 1 enriched (the old one) |
+| Provenance still holding | `ad_entities` | 233 rows, **0 unstamped** |
+| Published | route probe | `/performance` **200**, `/dashboard/integration` **200**, control route **404** |
+
+### *** "Sync now" is proven working in production, by a real user click ***
+`insights_sync_runs` shows a Xento run at **06:31:22Z** — off-cadence (the cron fires at :07),
+so it was user-triggered through `request_insights_sync`. 230 entities upserted, status `ok`,
+no error. The whole self-service path — button -> RPC -> auth check -> scoped fetcher run ->
+status view -> screen — works end to end without an operator. That was the point of 0009.
+
+Minor, not a fault: that run used 7 `meta_calls` rather than 3, so the UI passes `p_days >= 7`
+(it appears to send the screen's selected date range). Legitimate; costs a few extra calls
+against a ceiling that is nowhere near being hit.
+
+### What the screens now show, and why it is right
+Ad performance with no spend reads: Spend **—**, Leads **2**, Cost per lead **—**, and
+*"2 of 2 leads are not yet linked to an ad, so they appear here but not in the table below."*
+That sentence is the honest version of the `ad_id` gap — the funnel is sourced from `leads`,
+the table from the spend side, and the UI now explains the difference instead of looking
+broken. Empty state reads "No ad data yet" rather than a grid of zeros. Ratios render as "—",
+never ₹0.00.
+
+The picker is a dialog with a shared list component, ad accounts show name over id, and the
+in-use account is badged **In use** rather than being offered as a choice.
+
+### BUILD ORDER
+1. **Live ad — STILL the only thing left. Everything else is done and verified.**
+2-5. Lead names / token alerts / campaign data collection / dashboard — DONE
+6. Connection self-service (Prompts 17+18) — DONE, published
+7. Agency mode — data model ready (0010), UI deliberately not built
+8. Billing — unstarted
+
+Open, unchanged: the dataset is not attached to SAGAR ADS 1, so returned conversions will not
+influence optimisation until that is fixed. The pipeline test is unaffected.
