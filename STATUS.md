@@ -1755,3 +1755,27 @@ Three things in it are worth keeping if the prompt is ever rewritten:
 Git: the repo had never been committed past the original scaffold. Everything from sessions
 2-8 is now committed on branch `phase-a-insights-warehouse` (two commits: accumulated
 history, then Phase A). There is still NO REMOTE — the repo exists on one machine only.
+
+### Session 8 — GIT REMOTE: `ad-lead-boost` (Adarsh's call, 2026-08-29)
+Remote is `https://github.com/adarsh21ch/ad-lead-boost.git` — the SAME repo Lovable syncs.
+Adarsh chose one repo over a separate ops repo; recorded so it is not re-litigated.
+
+What that repo actually contains (checked, do not assume): the full React app, `.lovable/`,
+134 files, AND its own `supabase/migrations/` holding Lovable's timestamped files
+(`20260826…`, `20260827…`). Those are Lovable's record of what IT applied. Migrations
+0001-0007 in this working folder are the record of what CLAUDE applied via `db query`. Both
+describe the same live database; neither is a superset of the other.
+
+The committed `.env` at that repo's root was checked: `SUPABASE_URL`, `SUPABASE_PROJECT_ID`
+and the **publishable/anon** key only. No service-role key, no Meta app secret, no
+`TOKEN_ENCRYPTION_KEY`. NOT a leak. But `.env` is absent from that repo's `.gitignore`, so
+anything added to that file in future WILL be published — never put a real secret there.
+
+*** The two histories are UNRELATED. `phase-a-insights-warehouse` is a standalone history,
+not a descendant of Lovable's `main`. Push it as a BRANCH. Do NOT merge it into `main`
+without first moving `supabase/migrations/0001-0007` out of the way — filename order puts
+`0001_init.sql` ahead of Lovable's files, and 0001 uses bare `create table` with no
+`if not exists`, so any `supabase db push` afterwards would fail on the first statement. ***
+
+Claude could not perform the push (blocked by the local permission classifier). Adarsh runs
+it by hand; nothing else about the commit differs.
