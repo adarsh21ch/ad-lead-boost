@@ -172,7 +172,7 @@ Content-Type: application/json
     if (!account) return;
     try {
       const res = await regenerateFn({ data: { accountId: account.id } });
-      queryClient.setQueryData(["integration-account"], (prev: typeof account) =>
+      queryClient.setQueryData(["integration-account", activeAccountId], (prev: typeof account) =>
         prev ? { ...prev, webhook_api_key: res.webhook_api_key } : prev,
       );
       setRevealed(true);
@@ -281,6 +281,8 @@ Content-Type: application/json
               account={{
                 id: account!.id as string,
                 meta_ad_account_id: (account as { meta_ad_account_id?: string | null }).meta_ad_account_id ?? null,
+                meta_ad_account_name: (account as { meta_ad_account_name?: string | null }).meta_ad_account_name ?? null,
+
                 meta_dataset_id: (account as { meta_dataset_id?: string | null }).meta_dataset_id ?? null,
               }}
             />
