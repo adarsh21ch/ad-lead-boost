@@ -340,18 +340,44 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
+/**
+ * Every AdsPro account this user owns. A user may own more than one (each with
+ * its own Page, ad account and dataset), so screens render a list, not a row.
+ */
+export const listMyAccounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("accounts")
+      .select("id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id")
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const getIntegrationAccount = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data?: { accountId?: string | null }) => ({
+    accountId: data?.accountId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    let query = context.supabase
+      .from("accounts")
       .select(
-        "id, status, meta_ad_account_id, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
-      )
+        "id, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
+      );
+    if (data.accountId) query = query.eq("id", data.accountId);
+    const { data: rows, error } = await query
       .order("created_at", { ascending: true })
       .limit(1);
     if (error) throw error;
-    const account = data?.[0] ?? null;
+    const account = rows?.[0] ?? null;
     if (!account) return null;
     const ready = account.status === "active" && Boolean(account.meta_dataset_id);
     // Never expose the API key until the account is fully connected.
     return ready ? account : { ...account, webhook_api_key: "", ready: false };
   });
+
 
 export const regenerateWebhookKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
