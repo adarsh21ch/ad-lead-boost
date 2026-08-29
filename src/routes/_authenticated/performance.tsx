@@ -473,10 +473,12 @@ function PerformancePage() {
         </div>
 
         {/* TASK 6 — provenance footer */}
-        <p className="border-t pt-4 text-xs text-muted-foreground">
-          Attribution: {attributionWindow ?? "—"} · Meta revises these figures for up to 28 days ·
-          Last updated {newestSnapshot ? new Date(newestSnapshot).toLocaleString() : "—"}.
-        </p>
+        {hasAnyInsights && (
+          <p className="border-t pt-4 text-xs text-muted-foreground">
+            Attribution: {attributionWindow ?? "—"} · Meta revises these figures for up to 28 days ·
+            Last updated {newestSnapshot ? new Date(newestSnapshot).toLocaleString() : "—"}.
+          </p>
+        )}
       </div>
     </AppShell>
   );
