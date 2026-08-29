@@ -215,6 +215,42 @@ Content-Type: application/json
           </p>
         </div>
 
+        {/* N accounts: a selector. One account: a plain label. */}
+        {myAccounts && myAccounts.length > 1 ? (
+          <div className="rounded-md border p-4">
+            <p className="text-xs text-muted-foreground">AdsPro account</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {myAccounts.map((row) => (
+                <Button
+                  key={row.id}
+                  size="sm"
+                  variant={row.id === activeAccountId ? "default" : "outline"}
+                  onClick={() => setSelectedAccountId(row.id)}
+                  className="h-auto flex-col items-start py-2"
+                >
+                  <span className="text-sm font-medium">{row.name}</span>
+                  <span className="text-[10px] opacity-70">
+                    {adAccountLabel({
+                      id: row.meta_ad_account_id,
+                      name: row.meta_ad_account_name,
+                    })}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : myAccounts && myAccounts.length === 1 && myAccounts[0] ? (
+          <p className="text-xs text-muted-foreground">
+            Account: <span className="font-medium text-foreground">{myAccounts[0].name}</span> ·{" "}
+            {adAccountLabel({
+              id: myAccounts[0].meta_ad_account_id,
+              name: myAccounts[0].meta_ad_account_name,
+            })}
+          </p>
+        ) : null}
+
+
+
         {account && tokenInvalid && (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-4">
             <p className="font-semibold text-destructive">Your Meta connection is no longer valid.</p>
