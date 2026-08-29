@@ -1779,3 +1779,52 @@ without first moving `supabase/migrations/0001-0007` out of the way — filename
 
 Claude could not perform the push (blocked by the local permission classifier). Adarsh runs
 it by hand; nothing else about the commit differs.
+
+## *** Session 8 — PROMPT 16 SHIPPED + CRON PROVEN FIRING UNATTENDED *** (2026-08-29 04:08Z)
+
+Lovable answered all 7 definition-of-done items properly on the first turn — a first for this
+project. Claude verified every checkable claim from the database and a production probe. All
+held. No corrections needed.
+
+### *** THE LAST UNPROVEN THING IS NOW PROVEN: pg_cron fires the sync by itself ***
+Everything in the earlier Session 8 entry was triggered by hand (curl, or `select
+run_insights_sync(3)`). At **04:07:00Z** `cron.job_run_details` recorded jobid 6
+`adspro-insights-sync-recent` **succeeded**, producing two new `insights_sync_runs` rows
+(Xento + Acme Solar), both `ok`, zero errors. 8 runs total, 0 failed.
+
+`meta_calls` dropped from 4 to **3 per account**, exactly as designed: the ad-account
+timezone is now populated, so the extra `?fields=timezone_name,currency` call is skipped on
+hourly runs. The rate-limit budget behaves as intended — 6 calls/hour across both accounts.
+
+**Item 4 is fully closed.** The warehouse collects on its own, unattended, and will begin
+filling the moment an ad spends.
+
+### Verification of Lovable's report (method: DB diff + route probe)
+| Claim | How checked | Result |
+|---|---|---|
+| "Zero migrations, zero DDL" | full object inventory | 10 tables, 2 views, 8 policies, 5 cron jobs — **identical to before**. `ad_performance_daily` still 36 columns |
+| Screen is published | route probe | `/performance` **200**, control route **404** |
+| `LEAD_ENRICHMENT_ENABLED="false"` | behavioural | `leads` still 3, `full_name` still 1 (Meta's old placeholder), `ad_id` still 0 — no enrichment ran |
+| DB state it described | direct count | warehouse 0 rows, latest run `ok`, 3 leads all `ad_id` NULL — its numbers were accurate when taken |
+| Token health | `accounts` | both `healthy` |
+
+Not verifiable by Claude, and honestly declared by Lovable: the rendered screen (no signed-in
+session can be minted against this external Supabase), and the literal stored secret value.
+The behavioural evidence is consistent with `"false"` in both cases.
+
+### The Session 7 auth-gate worry does NOT apply to this screen
+`/performance` returns 200 unauthenticated because the gate is client-side — the concern
+recorded in Session 7. It does not matter here: Lovable read the data with the **logged-in
+user's session** through `security_invoker` views over RLS tables, so an unauthenticated
+visitor gets the shell and **zero rows**. RLS is the real boundary and it is doing the work.
+This is the right pattern; keep it for every future data screen.
+
+### BUILD ORDER
+1. Live ad — **the only thing left with a clock. Still not started.**
+2-4. Lead names / token alerts / campaign data collection — DONE, all verified live
+5. **Dashboard — DONE, published, verified.**
+6. Onboarding polish · 7. Agency mode · 8. Billing — unstarted, deliberately
+
+Git: 4 commits on branch `phase-a-insights-warehouse`, pushed to
+`github.com/adarsh21ch/ad-lead-boost` (Lovable's repo, separate branch — see the
+unrelated-history hazard note above before ever merging it to main).
