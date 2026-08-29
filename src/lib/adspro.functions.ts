@@ -388,6 +388,19 @@ export const listMyAccounts = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+/** Every account this user owns, with the fields the dashboard home renders. */
+export const listMyAccountsDetailed = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("accounts")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+
 export const getIntegrationAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data?: { accountId?: string | null }) => ({
