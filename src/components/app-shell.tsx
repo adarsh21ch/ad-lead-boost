@@ -8,7 +8,9 @@ import { BrandLogo } from "@/components/brand-logo";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/performance", label: "Ad performance" },
   { to: "/leads", label: "Leads" },
+
   { to: "/deliveries", label: "Deliveries" },
   { to: "/dashboard/integration", label: "Integration" },
   { to: "/dashboard/settings", label: "Settings" },

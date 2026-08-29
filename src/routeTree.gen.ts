@@ -18,6 +18,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authenticated/deliveries'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedPerformanceRouteImport } from './routes/_authenticated/performance'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardIntegrationRouteImport } from './routes/_authenticated/dashboard.integration'
@@ -79,6 +80,12 @@ const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPerformanceRoute =
+  AuthenticatedPerformanceRouteImport.update({
+    id: '/performance',
+    path: '/performance',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/deliveries': typeof AuthenticatedDeliveriesRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/deliveries': typeof AuthenticatedDeliveriesRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
@@ -232,6 +241,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/deliveries': typeof AuthenticatedDeliveriesRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/performance': typeof AuthenticatedPerformanceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard/integration': typeof AuthenticatedDashboardIntegrationRoute
   '/_authenticated/dashboard/select-ad-account': typeof AuthenticatedDashboardSelectAdAccountRoute
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/deliveries'
     | '/leads'
+    | '/performance'
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/deliveries'
     | '/leads'
+    | '/performance'
     | '/auth/callback'
     | '/dashboard/integration'
     | '/dashboard/select-ad-account'
@@ -312,6 +324,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/deliveries'
     | '/_authenticated/leads'
+    | '/_authenticated/performance'
     | '/auth/callback'
     | '/_authenticated/dashboard/integration'
     | '/_authenticated/dashboard/select-ad-account'
@@ -413,6 +426,13 @@ declare module '@tanstack/react-router' {
       path: '/leads'
       fullPath: '/leads'
       preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/performance': {
+      id: '/_authenticated/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof AuthenticatedPerformanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/auth/callback': {
@@ -556,12 +576,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
   AuthenticatedDeliveriesRoute: typeof AuthenticatedDeliveriesRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedPerformanceRoute: typeof AuthenticatedPerformanceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
   AuthenticatedDeliveriesRoute: AuthenticatedDeliveriesRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedPerformanceRoute: AuthenticatedPerformanceRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
