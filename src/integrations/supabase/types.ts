@@ -23,6 +23,7 @@ export type Database = {
           meta_ad_account_name: string | null
           meta_ad_account_timezone: string | null
           meta_dataset_id: string | null
+          meta_dataset_name: string | null
           meta_page_id: string | null
           meta_token_expires_at: string | null
           name: string
@@ -46,6 +47,7 @@ export type Database = {
           meta_ad_account_name?: string | null
           meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
+          meta_dataset_name?: string | null
           meta_page_id?: string | null
           meta_token_expires_at?: string | null
           name: string
@@ -69,6 +71,7 @@ export type Database = {
           meta_ad_account_name?: string | null
           meta_ad_account_timezone?: string | null
           meta_dataset_id?: string | null
+          meta_dataset_name?: string | null
           meta_page_id?: string | null
           meta_token_expires_at?: string | null
           name?: string
