@@ -1,6 +1,6 @@
 # AdsPro — Build Status & Checklist
 
-Last updated: 2026-08-27 (session 6)
+Last updated: 2026-08-29 (session 9)
 
 ## What AdsPro is
 
@@ -1899,3 +1899,109 @@ Nevorai/nFlow is the fallback (proven cheap audience). Enarsia was considered an
 "businesses with field teams" is a much fuzzier Meta audience than "gym owner", so leads
 cost more and arrive slower — bad properties for a pipeline test. Add it as a second
 campaign later, after the pipe is proven, never as a budget split during the test.
+
+## *** Session 9 — THE WEBHOOK DOES NOT CARRY THE HIERARCHY. 0008 FIXES IT WITHOUT META. *** (2026-08-29)
+
+Session opened while Adarsh sets up the live ad (Academy OS, Leads campaign + Instant Form,
+₹150/day). Full DB state re-verified first: **nothing drifted.** 10 tables, 2 views, 8
+policies, 5 cron jobs, 3 leads (0 with ad_id), warehouse 0 rows, both tokens `healthy`,
+jobid 6 last fired 04:07Z with 3 meta_calls/account and `ok` on both. Item 1 is still the
+only thing with a clock on it.
+
+### *** NEW EVIDENCE: what Meta's leadgen webhook ACTUALLY delivered ***
+`leads.raw_field_data->'webhook'` stores the envelope verbatim, so this is observed, not
+inferred. The only REAL (non-test) webhook this app has ever received carried exactly four
+keys:
+
+    created_time, form_id, leadgen_id, page_id
+
+**No `ad_id`. No `adgroup_id`. No `campaign_id`. No `adset_id`.**
+
+This sharpens Session 8's hypothesis (a), which said the NULLs were explained by *Meta TEST
+leads carrying no ad attribution*. That framing was wrong about this lead: `is_test = false`,
+`enrichment_status = 'enriched'`, real `leadgen_id`, real `form_id`. It was a genuine organic
+form submission — no ad was involved, so there was no attribution to send. **The absence is
+still explained by "no paid ad", so this is not proof that a paid lead will also arrive bare.
+The live ad remains the actual test.** But it does mean hypothesis (a) has never once been
+observed working, and should stop being described as the likely case.
+
+### What is certain regardless of how the live ad turns out
+- **`adset_id` will be NULL either way.** Meta's leadgen webhook does not send it, and
+  `meta-leadgen.ts` does not map it — checked on `origin/main`, not assumed. Only enrichment
+  writes `adset_id`.
+- **`campaign_id` is probably NULL.** The handler reads `value.campaign_id`, but it is not a
+  documented leadgen webhook field. Whoever wrote that line was hedging, not reporting.
+- `ad_id` is mapped correctly, with `value.adgroup_id` as a fallback — that part is right.
+
+So the BEST realistic outcome of the live ad is **ad_id only**. Under 0007 that meant: the ad
+level shows correct numbers, and the adset and campaign levels show spend against ZERO leads.
+Campaign is the level a user opens first. Correct arithmetic, broken-looking product.
+
+### `0008_lead_hierarchy_derivation.sql` — applied, self-tested, zero Lovable credits
+`ad_entities` already holds the chain (`ad.parent_id` = adset, `adset.parent_id` = campaign),
+filled hourly from Insights via `ads_management`, which is already granted. So a lead carrying
+only `ad_id` can be walked up to its adset and campaign with a lookup — **no App Review, no
+lead enrichment, no flag flip.** The view now does exactly that.
+
+Four properties worth not re-deriving later:
+- **Query-time, not write-time.** A lead that arrives before its ad has been synced simply has
+  nothing to resolve against; the next hourly sync makes its attribution appear
+  **retroactively**. No backfill job, no permanently mis-filed lead.
+- **The lead's own column always wins** (`coalesce(l.campaign_id, adse.parent_id)`). If
+  `LEAD_ENRICHMENT_ENABLED` is ever turned on, real ids take over and the derivation stands
+  down by itself. Nothing to undo.
+- **Scoped by `account_id` on both hops.** Both accounts still point at the same Meta ad
+  account, so an unscoped lookup would cross tenants. Explicitly tested.
+- **Column list UNCHANGED — still 36 columns, same names, same types** (diffed before/after).
+  The published `/performance` screen needs no change and Lovable is not involved. *** The
+  "36 columns" tripwire used in Sessions 8-9 to detect Lovable DDL is still valid. ***
+
+### Verified — measured, not asserted
+Self-test ran inside a transaction deliberately aborted by `raise exception`, so **nothing was
+ever committed**. That matters here beyond tidiness: jobid 1 dispatches `status_events` to
+Meta every 2 minutes, and a committed synthetic `qualified` event would have been really
+delivered (as happened in Session 8). Rollback makes that impossible rather than unlikely.
+
+| Assertion | Result |
+|---|---|
+| campaign derived from `ad_id` alone | PASS leads=1 qual=1 **cpql=₹300.00** |
+| adset derived from `ad_id` alone | PASS leads=2 qual=1 cpql=₹300.00 |
+| ad level unchanged by 0008 | PASS leads=2 |
+| orphan ad (no `ad_entities` row) still counts at ad level | PASS leads=1 |
+| lead's own `campaign_id` beats derivation | PASS |
+| same `ad_id` under the other tenant resolves via ITS chain | PASS |
+| no cross-tenant bleed into account A | PASS |
+
+**Old vs new, same synthetic lead, ₹300 spend at each level:**
+
+| level | 0007 | 0008 |
+|---|---|---|
+| campaign | **0 leads** | 1 |
+| adset | **0 leads** | 1 |
+| ad | 1 | 1 |
+
+Residue after both runs: `ZZ%` rows = 0 everywhere, `leads` still 3, `status_events` still 10,
+`capi_delivery_logs` still 10 (nothing was dispatched), object inventory identical.
+
+### `VERIFY_FIRST_REAL_LEAD.sql` — run this the moment the ad produces a lead
+    supabase db query --linked -f VERIFY_FIRST_REAL_LEAD.sql
+Answers in one shot: whether `ad_id` arrived, **the exact keys Meta's webhook sent** (raw
+envelope, never inferred), whether 0008 resolved the lead to adset + campaign with a
+plain-English verdict per lead, and whether the joined view is showing real money yet.
+Smoke-tested against current data — it correctly reports the one real lead as
+"NO ad_id — webhook carried no attribution; needs LEAD_ENRICHMENT_ENABLED".
+
+### How to read the result when it comes
+- **`ad_id` present** → cost-per-qualified-lead works TODAY at all three levels, App Review
+  irrelevant to Phase B. Best case, and 0008 is what makes it all three rather than one.
+- **`ad_id` absent** → the webhook never carries attribution, and Phase B genuinely waits on
+  `LEAD_ENRICHMENT_ENABLED`, i.e. on Meta. 0008 costs nothing in that case and starts working
+  the day the flag flips.
+Either way the answer is now one command, and either way nothing needs rebuilding.
+
+### BUILD ORDER
+1. **Live ad — still the only thing with a clock. In progress (Adarsh).**
+2-5. Lead names / token alerts / campaign data collection / dashboard — DONE, verified live
+6. Onboarding polish · 7. Agency mode · 8. Billing — unstarted, deliberately
+
+`LEAD_ENRICHMENT_ENABLED` untouched, still `"false"`. Lovable not involved this session.
