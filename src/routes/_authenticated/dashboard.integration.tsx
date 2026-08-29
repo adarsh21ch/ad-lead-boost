@@ -176,6 +176,7 @@ function IntegrationPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [disclosed, setDisclosed] = useState({ contract: false, zapier: false });
 
   // A user may own more than one AdsPro account; render the list and let them pick.
   const listAccountsFn = useServerFn(listMyAccounts);
