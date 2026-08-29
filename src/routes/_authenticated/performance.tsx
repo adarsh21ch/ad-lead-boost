@@ -316,22 +316,22 @@ function PerformancePage() {
                   <FunnelStep
                     label="Contacted"
                     value={funnelQuery.data.contacted}
-                    prev={funnelQuery.data.total}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Qualified"
                     value={funnelQuery.data.qualified}
-                    prev={funnelQuery.data.contacted}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Booked"
                     value={funnelQuery.data.booked}
-                    prev={funnelQuery.data.qualified}
+                    total={funnelQuery.data.total}
                   />
                   <FunnelStep
                     label="Purchased"
                     value={funnelQuery.data.purchased}
-                    prev={funnelQuery.data.booked}
+                    total={funnelQuery.data.total}
                   />
                 </div>
                 {funnelQuery.data.unlinked > 0 && (
