@@ -34,13 +34,18 @@ export const validateAndSaveAdAccount = createServerFn({ method: "POST" })
     if (readError) return { ok: false as const, error: { message: readError.message, code: null } };
     if (!current) return { ok: false as const, error: { message: "Account not found", code: null } };
 
+    // The validation call already returns the human name — keep it instead of
+    // discarding it, so no screen has to show a bare act_ number.
+    let adAccountName: string | null = null;
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
-      await graphGet(
+      const json = await graphGet(
         `${graphUrl(adAccountId)}?fields=id,name,account_status,currency`,
         token,
         adAccountId,
       );
+      const name = (json as { name?: unknown }).name;
+      adAccountName = typeof name === "string" && name.trim() ? name.trim() : null;
       await reportTokenHealth(data.accountId, "ok", "adaccounts");
     } catch (error) {
       const details = getMetaGraphErrorDetails(error);
@@ -51,15 +56,23 @@ export const validateAndSaveAdAccount = createServerFn({ method: "POST" })
 
     const changed = current.meta_ad_account_id !== adAccountId;
     // Meta reports insights in the ad account's timezone; force a genuine re-fetch.
+    // meta_dataset_id is deliberately absent from this patch — changing the ad
+    // account must never clobber the CAPI destination.
     const patch = changed
-      ? { meta_ad_account_id: adAccountId, meta_ad_account_timezone: null }
-      : { meta_ad_account_id: adAccountId };
+      ? {
+          meta_ad_account_id: adAccountId,
+          meta_ad_account_name: adAccountName,
+          meta_ad_account_timezone: null,
+        }
+      : { meta_ad_account_id: adAccountId, meta_ad_account_name: adAccountName };
 
     const { data: saved, error } = await context.supabase
       .from("accounts")
       .update(patch)
       .eq("id", data.accountId)
-      .select("id, meta_ad_account_id, meta_dataset_id, meta_ad_account_timezone")
+      .select(
+        "id, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_ad_account_timezone",
+      )
       .maybeSingle();
     if (error) return { ok: false as const, error: { message: error.message, code: null } };
     if (!saved) {
@@ -67,6 +80,7 @@ export const validateAndSaveAdAccount = createServerFn({ method: "POST" })
     }
     return { ok: true as const, account: saved };
   });
+
 
 /**
  * Validates the chosen dataset against Meta BEFORE persisting it, then writes ONLY
