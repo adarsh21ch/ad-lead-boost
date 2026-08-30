@@ -3,9 +3,11 @@
 // ad hierarchy the leadgen webhook omits.
 //
 // PII rules enforced here:
-//  - raw phone/email are hashed in memory and discarded in the same request
-//  - the Graph `field_data` is NEVER written to raw_field_data (webhook envelope only)
-//  - names/emails/phones are never logged; only leadgen_id + status
+//  - raw phone/email are hashed for CAPI matching AND stored raw (leads.phone /
+//    leads.email) so the owner can contact the lead; answers go to leads.responses
+//  - the Graph `field_data` envelope is NEVER written to raw_field_data (webhook only)
+//  - names/emails/phones/answers are never logged; only leadgen_id + status
+
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { GRAPH_VERSION, decryptToken } from "./meta.server";
@@ -110,8 +112,9 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
   const { data: lead, error } = await admin
     .from("leads")
     .select(
-      "id, account_id, meta_leadgen_id, enrichment_status, enrichment_attempts, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name, form_id, phone_hash, email_hash",
+      "id, account_id, meta_leadgen_id, enrichment_status, enrichment_attempts, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name, form_id, phone_hash, email_hash, phone, email, responses",
     )
+
     .eq("id", leadId)
     .maybeSingle();
   if (error || !lead) return { ok: true, skipped: true, reason: "lead_not_found" };
@@ -233,14 +236,42 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
   fillIfNull("campaign_id", payload.campaign_id);
   fillIfNull("campaign_name", payload.campaign_name);
   fillIfNull("form_id", payload.form_id);
+  // Raw-vs-hash split: the hashes below keep coming from the NORMALISED values
+  // (CAPI matching is unchanged); the raw values are stored alongside them so the
+  // owner can actually call/email the person.
+  if (rawPhone) fillIfNull("phone", rawPhone);
+  if (rawEmail) fillIfNull("email", rawEmail);
   if (rawEmail) fillIfNull("email_hash", sha256Hex(normalizeEmail(rawEmail)));
   if (rawPhone) {
     const normalized = normalizePhone(rawPhone);
     if (normalized) fillIfNull("phone_hash", sha256Hex(normalized));
   }
 
-  // NOTE: field_data is deliberately NOT persisted anywhere.
+  // Qualification answers: every field_data entry that is not a contact field.
+  const responses: Record<string, string> = {};
+  for (const f of fieldData) {
+    const key = (f?.name ?? "").trim();
+    if (!key) continue;
+    const lower = key.toLowerCase();
+    if (/name|email|phone|mobile/.test(lower)) continue;
+    const value = f?.values?.[0]?.trim();
+    if (!value) continue;
+    responses[key] = value;
+  }
+  const existingResponses = (lead as Record<string, unknown>)["responses"];
+  const existingHasKeys =
+    existingResponses != null &&
+    typeof existingResponses === "object" &&
+    Object.keys(existingResponses as Record<string, unknown>).length > 0;
+  if (!existingHasKeys && Object.keys(responses).length > 0) {
+    update["responses"] = responses;
+  }
+
+  // Contact fields and qualification answers are persisted (columns phone, email,
+  // responses); the raw Graph envelope still is not — raw_field_data holds the
+  // webhook envelope only.
   const { error: writeError } = await admin.from("leads").update(update).eq("id", lead.id);
+
   if (writeError) {
     console.error(`[lead-enrichment] leadgen_id=${leadgenId} db write failed`, writeError.message);
     return { ok: false, error: "failed", code: null, message: writeError.message };

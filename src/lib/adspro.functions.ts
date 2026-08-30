@@ -216,17 +216,31 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
     return { ok: true as const, account: saved };
   });
 
+/** Strips characters that carry meaning inside a PostgREST filter string. */
+function sanitizeSearchTerm(raw: string): string {
+  return raw.replace(/[,()*\\"':]/g, " ").trim().slice(0, 80);
+}
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data?: { search?: string; status?: string } | null) => ({
+    search: typeof data?.search === "string" ? data.search : "",
+    status: typeof data?.status === "string" ? data.status : "all",
+  }))
+  .handler(async ({ data, context }) => {
     const { isLeadEnrichmentEnabled } = await import("@/lib/lead-enrichment.server");
     const enrichmentEnabled = isLeadEnrichmentEnabled();
-    const columns = enrichmentEnabled
-      ? "id, created_at, meta_leadgen_id, campaign_id, campaign_name, ad_id, ad_name, form_id, full_name, enrichment_status, enrichment_error"
-      : "id, created_at, meta_leadgen_id, campaign_id, ad_id, form_id";
-    const { data: leads, error } = await context.supabase
-      .from("leads")
-      .select(columns)
+    const columns =
+      "id, created_at, meta_leadgen_id, campaign_id, campaign_name, ad_id, ad_name, form_id, full_name, enrichment_status, enrichment_error, phone, email, responses, notes";
+    let query = context.supabase.from("leads").select(columns);
+    const term = sanitizeSearchTerm(data.search ?? "");
+    if (term) {
+      const like = `%${term}%`;
+      query = query.or(
+        `full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`,
+      );
+    }
+    const { data: leads, error } = await query
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
@@ -242,6 +256,10 @@ export const listLeads = createServerFn({ method: "GET" })
       full_name?: string | null;
       enrichment_status?: string | null;
       enrichment_error?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      responses?: Record<string, string> | null;
+      notes?: string | null;
     }>;
     const leadIds = rows.map((l) => l.id);
     // Names + resolved hierarchy come from the security_invoker view, which
@@ -281,22 +299,56 @@ export const listLeads = createServerFn({ method: "GET" })
     }
     const latest = new Map<string, string>();
     for (const e of events) if (!latest.has(e.lead_id)) latest.set(e.lead_id, e.status);
+    const statusFilter = data.status ?? "all";
+    const mapped = rows.map((l) => {
+      const attr = attribution.get(l.id);
+      return {
+        ...l,
+        responses: (l.responses ?? {}) as Record<string, string>,
+        campaign_id: attr?.campaign_id ?? l.campaign_id ?? null,
+        campaign_name: attr?.campaign_name ?? l.campaign_name ?? null,
+        adset_id: attr?.adset_id ?? null,
+        adset_name: attr?.adset_name ?? null,
+        ad_name: attr?.ad_name ?? l.ad_name ?? null,
+        latest_status: latest.get(l.id) ?? null,
+      };
+    });
     return {
       enrichmentEnabled,
-      leads: rows.map((l) => {
-        const attr = attribution.get(l.id);
-        return {
-          ...l,
-          campaign_id: attr?.campaign_id ?? l.campaign_id ?? null,
-          campaign_name: attr?.campaign_name ?? l.campaign_name ?? null,
-          adset_id: attr?.adset_id ?? null,
-          adset_name: attr?.adset_name ?? null,
-          ad_name: attr?.ad_name ?? l.ad_name ?? null,
-          latest_status: latest.get(l.id) ?? null,
-        };
-      }),
+      leads:
+        statusFilter === "all"
+          ? mapped
+          : statusFilter === "new"
+            ? mapped.filter((l) => l.latest_status == null)
+            : mapped.filter((l) => l.latest_status === statusFilter),
     };
   });
+
+export const setLeadNotes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { leadId: string; notes: string }) => {
+    if (!data?.leadId) throw new Error("leadId is required");
+    return { leadId: data.leadId, notes: String(data.notes ?? "").slice(0, 4000) };
+  })
+  .handler(async ({ data, context }) => {
+    // RLS scopes the read to the owner — this doubles as the ownership check.
+    const { data: lead, error } = await context.supabase
+      .from("leads")
+      .select("id")
+      .eq("id", data.leadId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!lead) throw new Error("Lead not found");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
+      .from("leads")
+      .update({ notes: data.notes || null })
+      .eq("id", lead.id);
+    if (upErr) throw upErr;
+    return { ok: true as const };
+  });
+
+
 
 
 export const setLeadStatus = createServerFn({ method: "POST" })
