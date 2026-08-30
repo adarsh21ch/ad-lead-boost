@@ -63,7 +63,10 @@ export function humanizeKey(key: string): string {
 
 /** Meta sends answer values snake-cased; nobody reads them that way. */
 export function humanizeAnswer(value: unknown): string {
-  const raw = String(value ?? "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = String(value ?? "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
@@ -85,18 +88,13 @@ export function ageFromDob(dob: unknown): number | null {
   const year = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const d = new Date(Date.UTC(year, month - 1, day));
-  if (
-    d.getUTCFullYear() !== year ||
-    d.getUTCMonth() !== month - 1 ||
-    d.getUTCDate() !== day
-  ) {
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
     return null;
   }
   const now = new Date();
   let age = now.getUTCFullYear() - year;
   const beforeBirthday =
-    now.getUTCMonth() + 1 < month ||
-    (now.getUTCMonth() + 1 === month && now.getUTCDate() < day);
+    now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day);
   if (beforeBirthday) age -= 1;
   if (age < 13 || age > 100) return null;
   return age;

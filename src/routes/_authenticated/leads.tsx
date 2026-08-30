@@ -66,9 +66,17 @@ export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
     meta: [
       { title: "Leads — AdsPro" },
-      { name: "description", content: "Review Meta Lead Ads leads, call or WhatsApp them, and assign conversion outcomes in AdsPro." },
+      {
+        name: "description",
+        content:
+          "Review Meta Lead Ads leads, call or WhatsApp them, and assign conversion outcomes in AdsPro.",
+      },
       { property: "og:title", content: "Leads — AdsPro" },
-      { property: "og:description", content: "Review Meta Lead Ads leads, call or WhatsApp them, and assign conversion outcomes in AdsPro." },
+      {
+        property: "og:description",
+        content:
+          "Review Meta Lead Ads leads, call or WhatsApp them, and assign conversion outcomes in AdsPro.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -116,13 +124,7 @@ function LeadNameCell({ lead }: { lead: LeadRow }) {
   );
 }
 
-function ContactCell({
-  lead,
-  enrichmentEnabled,
-}: {
-  lead: LeadRow;
-  enrichmentEnabled: boolean;
-}) {
+function ContactCell({ lead, enrichmentEnabled }: { lead: LeadRow; enrichmentEnabled: boolean }) {
   const phone = lead.phone ?? null;
   const enrichmentNote =
     lead.enrichment_status === "not_attempted" && !enrichmentEnabled
@@ -203,10 +205,7 @@ function SourceFilter({
   // A filter that can only be set one way is noise.
   if (options.length < 2) return null;
   return (
-    <Select
-      value={value ?? ALL}
-      onValueChange={(v) => onChange(v === ALL ? undefined : v)}
-    >
+    <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? undefined : v)}>
       <SelectTrigger className="h-8 w-[190px] shrink-0 text-xs" aria-label={label}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
@@ -287,8 +286,7 @@ function LeadsPage() {
     [sourceOptions, campaignId],
   );
   const ads = useMemo(
-    () =>
-      sourceOptions.filter((o) => o.level === "ad" && (!adsetId || o.parent_id === adsetId)),
+    () => sourceOptions.filter((o) => o.level === "ad" && (!adsetId || o.parent_id === adsetId)),
     [sourceOptions, adsetId],
   );
 
@@ -311,17 +309,15 @@ function LeadsPage() {
     setBackfilling(true);
     try {
       const res = await fetch("/api/public/leads/enrich-missing", { method: "POST" });
-      const body = (await res.json().catch(() => null)) as
-        | {
-            ok?: boolean;
-            error?: string;
-            processed?: number;
-            enriched?: number;
-            failed?: number;
-            rate_limited?: boolean;
-            scope_missing?: boolean;
-          }
-        | null;
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+        processed?: number;
+        enriched?: number;
+        failed?: number;
+        rate_limited?: boolean;
+        scope_missing?: boolean;
+      } | null;
       if (body?.error === "disabled") {
         toast.error(
           "Fetching lead details is turned off for this workspace (LEAD_ENRICHMENT_ENABLED is off).",

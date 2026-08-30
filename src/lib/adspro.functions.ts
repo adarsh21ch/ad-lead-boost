@@ -50,7 +50,6 @@ export const getMetaConnectUrl = createServerFn({ method: "GET" })
     );
   });
 
-
 export const listMetaAdAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string }) => {
@@ -58,7 +57,8 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
     return data;
   })
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } =
+      await import("./meta.server");
     const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
@@ -89,32 +89,46 @@ export const listMetaAdAccounts = createServerFn({ method: "GET" })
           .update({ status: "token_expired" })
           .eq("id", data.accountId)
           .eq("owner_user_id", context.userId);
-        if (statusError) console.error("[select-ad-account] failed to mark token expired", statusError);
+        if (statusError)
+          console.error("[select-ad-account] failed to mark token expired", statusError);
       }
       return { ok: false as const, error: details };
     }
-
   });
 
 export const listMetaPixels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { accountId: string; adAccountId: string; businessId?: string }) => {
-    if (!data?.accountId || !data?.adAccountId) throw new Error("accountId and adAccountId are required");
+    if (!data?.accountId || !data?.adAccountId)
+      throw new Error("accountId and adAccountId are required");
     return data;
   })
   .handler(async ({ data, context }) => {
-    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } = await import("./meta.server");
+    const { graphUrl, getOwnedAccountToken, graphGet, getMetaGraphErrorDetails } =
+      await import("./meta.server");
     const { reportTokenHealth, reportMetaError } = await import("./token-health.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
       const token = await getOwnedAccountToken(supabaseAdmin, data.accountId, context.userId);
       const requests = [
-        graphGet(`${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100`, token, `${data.adAccountId}/adspixels`),
+        graphGet(
+          `${graphUrl(`${data.adAccountId}/adspixels`)}?fields=id,name&limit=100`,
+          token,
+          `${data.adAccountId}/adspixels`,
+        ),
       ];
       if (data.businessId) {
         requests.push(
-          graphGet(`${graphUrl(`${data.businessId}/owned_pixels`)}?fields=id,name&limit=100`, token, `${data.businessId}/owned_pixels`),
-          graphGet(`${graphUrl(`${data.businessId}/client_pixels`)}?fields=id,name&limit=100`, token, `${data.businessId}/client_pixels`),
+          graphGet(
+            `${graphUrl(`${data.businessId}/owned_pixels`)}?fields=id,name&limit=100`,
+            token,
+            `${data.businessId}/owned_pixels`,
+          ),
+          graphGet(
+            `${graphUrl(`${data.businessId}/client_pixels`)}?fields=id,name&limit=100`,
+            token,
+            `${data.businessId}/client_pixels`,
+          ),
         );
       }
       const settled = await Promise.allSettled(requests);
@@ -127,7 +141,8 @@ export const listMetaPixels = createServerFn({ method: "GET" })
         if (result.status !== "fulfilled") continue;
         rawResponses.push(JSON.stringify(result.value));
         for (const pixel of (result.value.data ?? []) as Array<{ id: string; name?: string }>) {
-          if (pixel.id) pixels.set(pixel.id, { id: pixel.id, name: pixel.name ?? `Dataset ${pixel.id}` });
+          if (pixel.id)
+            pixels.set(pixel.id, { id: pixel.id, name: pixel.name ?? `Dataset ${pixel.id}` });
         }
       }
       const tokenError = errors.find((error) => error.code === 190 || error.code === 102);
@@ -138,7 +153,8 @@ export const listMetaPixels = createServerFn({ method: "GET" })
           .update({ status: "token_expired" })
           .eq("id", data.accountId)
           .eq("owner_user_id", context.userId);
-        if (statusError) console.error("[select-ad-account] failed to mark token expired", statusError);
+        if (statusError)
+          console.error("[select-ad-account] failed to mark token expired", statusError);
         return { ok: false as const, error: tokenError };
       }
       if (pixels.size === 0 && errors.length > 0) {
@@ -164,25 +180,28 @@ export const listMetaPixels = createServerFn({ method: "GET" })
       await reportMetaError(data.accountId, "adaccounts", details);
       return { ok: false as const, error: details };
     }
-
   });
 
 export const saveAdAccountSelection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: {
-    accountId: string;
-    adAccountId: string;
-    datasetId: string;
-    adAccountName?: string | null;
-    datasetName?: string | null;
-  }) => {
-    if (!data?.accountId || !data?.adAccountId || !data?.datasetId) {
-      throw new Error("accountId, adAccountId and datasetId are required");
-    }
-    return data;
-  })
+  .inputValidator(
+    (data: {
+      accountId: string;
+      adAccountId: string;
+      datasetId: string;
+      adAccountName?: string | null;
+      datasetName?: string | null;
+    }) => {
+      if (!data?.accountId || !data?.adAccountId || !data?.datasetId) {
+        throw new Error("accountId, adAccountId and datasetId are required");
+      }
+      return data;
+    },
+  )
   .handler(async ({ data, context }) => {
-    const adAccountId = data.adAccountId.startsWith("act_") ? data.adAccountId : `act_${data.adAccountId}`;
+    const adAccountId = data.adAccountId.startsWith("act_")
+      ? data.adAccountId
+      : `act_${data.adAccountId}`;
     const adAccountName = data.adAccountName?.trim() || null;
     // Meta reports insights in the ad account's timezone; null it so the fetcher re-reads it.
     const { data: saved, error } = await context.supabase
@@ -205,7 +224,9 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
       return { ok: false as const, error: error.message };
     }
     if (!saved) {
-      console.error("[select-ad-account] database save updated no owned account", { accountId: data.accountId });
+      console.error("[select-ad-account] database save updated no owned account", {
+        accountId: data.accountId,
+      });
       return { ok: false as const, error: "No owned account was updated." };
     }
     console.info("[select-ad-account] selection saved", {
@@ -218,7 +239,10 @@ export const saveAdAccountSelection = createServerFn({ method: "POST" })
 
 /** Strips characters that carry meaning inside a PostgREST filter string. */
 function sanitizeSearchTerm(raw: string): string {
-  return raw.replace(/[,()*\\"':]/g, " ").trim().slice(0, 80);
+  return raw
+    .replace(/[,()*\\"':]/g, " ")
+    .trim()
+    .slice(0, 80);
 }
 
 /** Source dropdown options — every campaign/ad set/ad that actually has leads. */
@@ -260,13 +284,9 @@ export const listLeads = createServerFn({ method: "GET" })
     const term = sanitizeSearchTerm(data.search ?? "");
     if (term) {
       const like = `%${term}%`;
-      query = query.or(
-        `full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`,
-      );
+      query = query.or(`full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`);
     }
-    const { data: leads, error } = await query
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const { data: leads, error } = await query.order("created_at", { ascending: false }).limit(200);
     if (error) throw error;
     const rows = (leads ?? []) as unknown as Array<{
       id: string;
@@ -414,8 +434,6 @@ export const getLeadStatusHistory = createServerFn({ method: "GET" })
     return { events: rows ?? [] };
   });
 
-
-
 export const reenrichLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string }) => {
@@ -434,13 +452,16 @@ export const reenrichLead = createServerFn({ method: "POST" })
     const { enrichLead } = await import("@/lib/lead-enrichment.server");
     const { error: resetErr } = await supabaseAdmin
       .from("leads")
-      .update({ enrichment_status: "not_attempted", enrichment_attempts: 0, enrichment_error: null })
+      .update({
+        enrichment_status: "not_attempted",
+        enrichment_attempts: 0,
+        enrichment_error: null,
+      })
       .eq("id", lead.id);
     if (resetErr) throw resetErr;
     const result = await enrichLead(supabaseAdmin, lead.id);
     return result;
   });
-
 
 export const setLeadNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -466,9 +487,6 @@ export const setLeadNotes = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-
-
-
 export const setLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string; status: string; suggestedStatus?: string | null }) => {
@@ -478,7 +496,9 @@ export const setLeadStatus = createServerFn({ method: "POST" })
       leadId: data.leadId,
       status: data.status,
       suggestedStatus:
-        typeof data.suggestedStatus === "string" && data.suggestedStatus ? data.suggestedStatus : null,
+        typeof data.suggestedStatus === "string" && data.suggestedStatus
+          ? data.suggestedStatus
+          : null,
     };
   })
   .handler(async ({ data, context }) => {
@@ -512,7 +532,9 @@ export const listDeliveryLogs = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("capi_delivery_logs")
-      .select("id, status_event_id, meta_event_name, http_status, meta_response, retry_count, delivered_at")
+      .select(
+        "id, status_event_id, meta_event_name, http_status, meta_response, retry_count, delivered_at",
+      )
       .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(100);
     if (error) throw error;
@@ -566,7 +588,9 @@ export const listMyAccounts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("accounts")
-      .select("id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name")
+      .select(
+        "id, name, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name",
+      )
       .order("created_at", { ascending: true });
     if (error) throw error;
     return data ?? [];
@@ -584,18 +608,14 @@ export const listMyAccountsDetailed = createServerFn({ method: "GET" })
     const rows = data ?? [];
 
     // Human-readable Facebook Page names, resolved from the discovered pages table.
-    const { data: pages } = await context.supabase
-      .from("meta_pages")
-      .select("page_id, page_name");
+    const { data: pages } = await context.supabase.from("meta_pages").select("page_id, page_name");
     const nameByPageId = new Map((pages ?? []).map((p) => [p.page_id, p.page_name]));
 
     return rows.map((row) => ({
       ...row,
-      page_name: row.meta_page_id ? nameByPageId.get(row.meta_page_id) ?? null : null,
+      page_name: row.meta_page_id ? (nameByPageId.get(row.meta_page_id) ?? null) : null,
     }));
   });
-
-
 
 export const getIntegrationAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -609,9 +629,7 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
         "id, status, meta_ad_account_id, meta_ad_account_name, meta_dataset_id, meta_dataset_name, meta_ad_account_timezone, meta_page_id, meta_token_expires_at, webhook_api_key, page_subscribe_status, page_subscribe_error, page_subscribed_at, token_status, token_last_error, token_invalid_since",
       );
     if (data.accountId) query = query.eq("id", data.accountId);
-    const { data: rows, error } = await query
-      .order("created_at", { ascending: true })
-      .limit(1);
+    const { data: rows, error } = await query.order("created_at", { ascending: true }).limit(1);
     if (error) throw error;
     const account = rows?.[0] ?? null;
     if (!account) return null;
@@ -619,7 +637,6 @@ export const getIntegrationAccount = createServerFn({ method: "GET" })
     // Never expose the API key until the account is fully connected.
     return ready ? account : { ...account, webhook_api_key: "", ready: false };
   });
-
 
 export const regenerateWebhookKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -682,8 +699,7 @@ export const listAccountDeliveries = createServerFn({ method: "GET" })
     });
     // Belt and braces: guarantee the rendered order is strictly newest first.
     return rows.sort(
-      (a, b) =>
-        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+      (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
     );
   });
 

@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getLeadStatusHistory,
-  setLeadNotes,
-  reenrichLead,
-} from "@/lib/adspro.functions";
+import { getLeadStatusHistory, setLeadNotes, reenrichLead } from "@/lib/adspro.functions";
 import {
   Sheet,
   SheetContent,
@@ -172,7 +168,9 @@ export function LeadDetailPanel({
   const enrichmentStatus = lead.enrichment_status ?? "not_attempted";
   const enrichmentNote =
     enrichmentStatus !== "enriched"
-      ? (lead.enrichment_error ?? ENRICHMENT_COPY[enrichmentStatus] ?? `Enrichment: ${enrichmentStatus}`)
+      ? (lead.enrichment_error ??
+        ENRICHMENT_COPY[enrichmentStatus] ??
+        `Enrichment: ${enrichmentStatus}`)
       : null;
 
   const runReenrich = async () => {
@@ -206,9 +204,7 @@ export function LeadDetailPanel({
         <SheetHeader className="border-b p-5 text-left">
           <SheetTitle className="text-lg">{lead.full_name || "Unnamed lead"}</SheetTitle>
           <SheetDescription>{identityLine(responses, lead.created_at)}</SheetDescription>
-          {enrichmentNote ? (
-            <p className="mt-1 text-xs text-amber-600">{enrichmentNote}</p>
-          ) : null}
+          {enrichmentNote ? <p className="mt-1 text-xs text-amber-600">{enrichmentNote}</p> : null}
         </SheetHeader>
 
         <div className="space-y-6 p-5">
@@ -244,8 +240,7 @@ export function LeadDetailPanel({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No phone number yet.{" "}
-                {ENRICHMENT_COPY[enrichmentStatus] ?? ""}
+                No phone number yet. {ENRICHMENT_COPY[enrichmentStatus] ?? ""}
               </p>
             )}
             {lead.email ? (
