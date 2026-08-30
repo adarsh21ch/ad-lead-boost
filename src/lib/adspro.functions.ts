@@ -363,14 +363,24 @@ export const listLeads = createServerFn({ method: "GET" })
         suggestion: suggestions.get(l.id) ?? null,
       };
     });
+    // Source filters run against the values resolved by `lead_attribution`
+    // (campaign_id / adset_id above), never against leads.campaign_id or
+    // leads.adset_id — Meta's webhook only ever carries ad_id, so those raw
+    // columns are null and filtering on them would return zero rows.
+    const bySource = mapped.filter((l) => {
+      if (data.campaignId && l.campaign_id !== data.campaignId) return false;
+      if (data.adsetId && l.adset_id !== data.adsetId) return false;
+      if (data.adId && l.ad_id !== data.adId) return false;
+      return true;
+    });
     return {
       enrichmentEnabled,
       leads:
         statusFilter === "all"
-          ? mapped
+          ? bySource
           : statusFilter === "new"
-            ? mapped.filter((l) => l.latest_status == null)
-            : mapped.filter((l) => l.latest_status === statusFilter),
+            ? bySource.filter((l) => l.latest_status == null)
+            : bySource.filter((l) => l.latest_status === statusFilter),
     };
   });
 
