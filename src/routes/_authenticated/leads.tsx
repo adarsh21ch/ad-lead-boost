@@ -289,7 +289,7 @@ function LeadsPage() {
       await setLeadStatusFn({ data: { leadId, status, suggestedStatus } });
       toast.success("Status saved — it will be sent to Meta by the dispatcher");
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["untouched-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leads-awaiting-decision"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save status");
     }
