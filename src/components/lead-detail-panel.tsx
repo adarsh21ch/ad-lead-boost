@@ -260,66 +260,13 @@ export function LeadDetailPanel({
 
           <Separator />
 
-          {/* 3. Suggestion */}
-          {showSuggestion && suggestion ? (
-            <>
-              <section className="space-y-2 rounded-md border p-3">
-                <SectionTitle>AdsPro suggests</SectionTitle>
-                <Badge variant="outline">
-                  {statusLabel(suggestion.suggested_status!)}
-                </Badge>
-                <p className="text-xs text-muted-foreground">
-                  {suggestion.confidence === "high"
-                    ? "Decidable from their answers."
-                    : "Confirm they replied on WhatsApp first."}
-                </p>
-                {suggestion.reason ? (
-                  <p className="text-sm">{suggestion.reason}</p>
-                ) : null}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      onSetStatus(lead.id, suggestion.suggested_status!, suggestion.suggested_status)
-                    }
-                  >
-                    Accept
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onDismissSuggestion(lead.id)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </section>
-              <Separator />
-            </>
-          ) : null}
-
-          {/* 4. Status */}
+          {/* 3. Status — the badge itself is the control */}
           <section className="space-y-3">
             <SectionTitle>Status</SectionTitle>
-            <div className="flex items-center gap-2">
-              {lead.latest_status ? (
-                <Badge variant="secondary">{statusLabel(lead.latest_status)}</Badge>
-              ) : (
-                <span className="text-sm text-muted-foreground">No status set</span>
-              )}
-            </div>
-            <Select
-              onValueChange={(v) =>
-                onSetStatus(lead.id, v, showSuggestion ? (suggestion?.suggested_status ?? null) : null)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Set status…" />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {statusLabel(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <LeadStatusSelect
+              status={lead.latest_status}
+              onSelect={(s) => onSetStatus(lead.id, s, null)}
+            />
             {historyLoading ? (
               <p className="text-xs text-muted-foreground">Loading history…</p>
             ) : rows.length ? (
