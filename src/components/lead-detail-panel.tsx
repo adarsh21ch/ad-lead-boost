@@ -6,7 +6,6 @@ import {
   setLeadNotes,
   reenrichLead,
 } from "@/lib/adspro.functions";
-import { LEAD_STATUSES } from "@/lib/adspro.constants";
 import {
   Sheet,
   SheetContent,
@@ -18,21 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LeadStatusSelect } from "@/components/lead-status-select";
+import { LeadAnswers } from "@/components/lead-answers";
 import { Copy, Mail, MessageSquare, Phone, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   ENRICHMENT_COPY,
-  PREFILL_KEYS,
   humanizeAnswer,
   humanizeKey,
   identityLine,
+  isProfileKey,
   statusLabel,
   waHref,
 } from "@/lib/lead-format";
@@ -148,15 +142,11 @@ export function LeadDetailPanel({
   open,
   onOpenChange,
   onSetStatus,
-  onDismissSuggestion,
-  suggestionVisible,
 }: {
   lead: PanelLead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSetStatus: (leadId: string, status: string, suggestedStatus: string | null) => void;
-  onDismissSuggestion: (leadId: string) => void;
-  suggestionVisible: boolean;
 }) {
   const queryClient = useQueryClient();
   const historyFn = useServerFn(getLeadStatusHistory);
@@ -176,8 +166,8 @@ export function LeadDetailPanel({
   const entries = Object.entries(responses);
   // Everything that isn't a known prefill key is a question — no allowlist,
   // so keys this code has never seen still render.
-  const answers = entries.filter(([k]) => !PREFILL_KEYS.includes(k));
-  const profile = entries.filter(([k]) => PREFILL_KEYS.includes(k));
+  const answers = entries.filter(([k]) => !isProfileKey(k));
+  const profile = entries.filter(([k]) => isProfileKey(k));
 
   const phone = lead.phone ?? null;
   const enrichmentStatus = lead.enrichment_status ?? "not_attempted";
@@ -185,9 +175,6 @@ export function LeadDetailPanel({
     enrichmentStatus !== "enriched"
       ? (lead.enrichment_error ?? ENRICHMENT_COPY[enrichmentStatus] ?? `Enrichment: ${enrichmentStatus}`)
       : null;
-  const suggestion = lead.suggestion;
-  const showSuggestion =
-    suggestionVisible && Boolean(suggestion?.suggested_status) && suggestion?.confidence !== "none";
 
   const runReenrich = async () => {
     setReenriching(true);
