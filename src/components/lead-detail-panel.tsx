@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getLeadStatusHistory,
-  setLeadNotes,
-  reenrichLead,
-} from "@/lib/adspro.functions";
-import { LEAD_STATUSES } from "@/lib/adspro.constants";
+import { getLeadStatusHistory, setLeadNotes, reenrichLead } from "@/lib/adspro.functions";
 import {
   Sheet,
   SheetContent,
@@ -14,25 +9,19 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LeadStatusSelect } from "@/components/lead-status-select";
+import { LeadAnswers } from "@/components/lead-answers";
 import { Copy, Mail, MessageSquare, Phone, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   ENRICHMENT_COPY,
-  PREFILL_KEYS,
   humanizeAnswer,
   humanizeKey,
   identityLine,
+  isProfileKey,
   statusLabel,
   waHref,
 } from "@/lib/lead-format";
@@ -148,15 +137,11 @@ export function LeadDetailPanel({
   open,
   onOpenChange,
   onSetStatus,
-  onDismissSuggestion,
-  suggestionVisible,
 }: {
   lead: PanelLead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSetStatus: (leadId: string, status: string, suggestedStatus: string | null) => void;
-  onDismissSuggestion: (leadId: string) => void;
-  suggestionVisible: boolean;
 }) {
   const queryClient = useQueryClient();
   const historyFn = useServerFn(getLeadStatusHistory);
@@ -176,18 +161,17 @@ export function LeadDetailPanel({
   const entries = Object.entries(responses);
   // Everything that isn't a known prefill key is a question — no allowlist,
   // so keys this code has never seen still render.
-  const answers = entries.filter(([k]) => !PREFILL_KEYS.includes(k));
-  const profile = entries.filter(([k]) => PREFILL_KEYS.includes(k));
+  const answers = entries.filter(([k]) => !isProfileKey(k));
+  const profile = entries.filter(([k]) => isProfileKey(k));
 
   const phone = lead.phone ?? null;
   const enrichmentStatus = lead.enrichment_status ?? "not_attempted";
   const enrichmentNote =
     enrichmentStatus !== "enriched"
-      ? (lead.enrichment_error ?? ENRICHMENT_COPY[enrichmentStatus] ?? `Enrichment: ${enrichmentStatus}`)
+      ? (lead.enrichment_error ??
+        ENRICHMENT_COPY[enrichmentStatus] ??
+        `Enrichment: ${enrichmentStatus}`)
       : null;
-  const suggestion = lead.suggestion;
-  const showSuggestion =
-    suggestionVisible && Boolean(suggestion?.suggested_status) && suggestion?.confidence !== "none";
 
   const runReenrich = async () => {
     setReenriching(true);
@@ -220,9 +204,7 @@ export function LeadDetailPanel({
         <SheetHeader className="border-b p-5 text-left">
           <SheetTitle className="text-lg">{lead.full_name || "Unnamed lead"}</SheetTitle>
           <SheetDescription>{identityLine(responses, lead.created_at)}</SheetDescription>
-          {enrichmentNote ? (
-            <p className="mt-1 text-xs text-amber-600">{enrichmentNote}</p>
-          ) : null}
+          {enrichmentNote ? <p className="mt-1 text-xs text-amber-600">{enrichmentNote}</p> : null}
         </SheetHeader>
 
         <div className="space-y-6 p-5">
@@ -258,8 +240,7 @@ export function LeadDetailPanel({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No phone number yet.{" "}
-                {ENRICHMENT_COPY[enrichmentStatus] ?? ""}
+                No phone number yet. {ENRICHMENT_COPY[enrichmentStatus] ?? ""}
               </p>
             )}
             {lead.email ? (
@@ -273,66 +254,13 @@ export function LeadDetailPanel({
 
           <Separator />
 
-          {/* 3. Suggestion */}
-          {showSuggestion && suggestion ? (
-            <>
-              <section className="space-y-2 rounded-md border p-3">
-                <SectionTitle>AdsPro suggests</SectionTitle>
-                <Badge variant="outline">
-                  {statusLabel(suggestion.suggested_status!)}
-                </Badge>
-                <p className="text-xs text-muted-foreground">
-                  {suggestion.confidence === "high"
-                    ? "Decidable from their answers."
-                    : "Confirm they replied on WhatsApp first."}
-                </p>
-                {suggestion.reason ? (
-                  <p className="text-sm">{suggestion.reason}</p>
-                ) : null}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      onSetStatus(lead.id, suggestion.suggested_status!, suggestion.suggested_status)
-                    }
-                  >
-                    Accept
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onDismissSuggestion(lead.id)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </section>
-              <Separator />
-            </>
-          ) : null}
-
-          {/* 4. Status */}
+          {/* 3. Status — the badge itself is the control */}
           <section className="space-y-3">
             <SectionTitle>Status</SectionTitle>
-            <div className="flex items-center gap-2">
-              {lead.latest_status ? (
-                <Badge variant="secondary">{statusLabel(lead.latest_status)}</Badge>
-              ) : (
-                <span className="text-sm text-muted-foreground">No status set</span>
-              )}
-            </div>
-            <Select
-              onValueChange={(v) =>
-                onSetStatus(lead.id, v, showSuggestion ? (suggestion?.suggested_status ?? null) : null)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Set status…" />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {statusLabel(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <LeadStatusSelect
+              status={lead.latest_status}
+              onSelect={(s) => onSetStatus(lead.id, s, null)}
+            />
             {historyLoading ? (
               <p className="text-xs text-muted-foreground">Loading history…</p>
             ) : rows.length ? (

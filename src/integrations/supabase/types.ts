@@ -808,6 +808,17 @@ export type Database = {
           },
         ]
       }
+      lead_source_options: {
+        Row: {
+          account_id: string | null
+          entity_id: string | null
+          lead_count: number | null
+          level: string | null
+          name: string | null
+          parent_id: string | null
+        }
+        Relationships: []
+      }
       lead_status_history: {
         Row: {
           account_id: string | null

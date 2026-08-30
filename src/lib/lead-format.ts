@@ -1,6 +1,38 @@
 /** Shared formatting helpers for the Leads screen and its detail panel. */
 
-export const PREFILL_KEYS = ["gender", "date_of_birth"];
+/**
+ * Meta's documented Lead Ads *prefill* field names — values Meta already knows
+ * about the person, not questions the advertiser wrote. These names (and only
+ * these) are treated as "profile" fields and rendered in the Lead cell /
+ * "Profile details"; every other key in `responses` is one of the owner's own
+ * questions and renders in "Their answers".
+ *
+ * This is a CLASSIFICATION, never a filter: an unrecognised key is shown as a
+ * question, so forms this code has never seen still render in full.
+ */
+export const META_PREFILL_KEYS = [
+  "date_of_birth",
+  "gender",
+  "city",
+  "state",
+  "province",
+  "country",
+  "zip_code",
+  "post_code",
+  "street_address",
+  "marital_status",
+  "relationship_status",
+  "military_status",
+  "job_title",
+  "company_name",
+] as const;
+
+/** Back-compat alias. */
+export const PREFILL_KEYS: readonly string[] = META_PREFILL_KEYS;
+
+export function isProfileKey(key: string): boolean {
+  return (META_PREFILL_KEYS as readonly string[]).includes(key);
+}
 
 export const STATUS_LABELS: Record<string, string> = {
   new: "New",
@@ -31,7 +63,10 @@ export function humanizeKey(key: string): string {
 
 /** Meta sends answer values snake-cased; nobody reads them that way. */
 export function humanizeAnswer(value: unknown): string {
-  const raw = String(value ?? "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = String(value ?? "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
@@ -53,18 +88,13 @@ export function ageFromDob(dob: unknown): number | null {
   const year = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const d = new Date(Date.UTC(year, month - 1, day));
-  if (
-    d.getUTCFullYear() !== year ||
-    d.getUTCMonth() !== month - 1 ||
-    d.getUTCDate() !== day
-  ) {
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
     return null;
   }
   const now = new Date();
   let age = now.getUTCFullYear() - year;
   const beforeBirthday =
-    now.getUTCMonth() + 1 < month ||
-    (now.getUTCMonth() + 1 === month && now.getUTCDate() < day);
+    now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day);
   if (beforeBirthday) age -= 1;
   if (age < 13 || age > 100) return null;
   return age;
@@ -76,12 +106,19 @@ export function identityLine(
   createdAt: string,
 ): string {
   const parts: string[] = [];
+  // Age is derived-and-additive: the raw date_of_birth still renders verbatim
+  // in the detail panel and is never replaced by this.
   const age = ageFromDob(responses?.["date_of_birth"]);
   if (age != null) parts.push(String(age));
   const gender = responses?.["gender"];
   if (gender) parts.push(humanizeAnswer(gender));
+  for (const key of META_PREFILL_KEYS) {
+    if (key === "gender" || key === "date_of_birth") continue;
+    const value = responses?.[key];
+    if (value) parts.push(humanizeAnswer(value));
+  }
   parts.push(relativeTime(createdAt));
-  return parts.join(" · ");
+  return parts.filter(Boolean).join(" · ");
 }
 
 export function waHref(phone: string): string {
