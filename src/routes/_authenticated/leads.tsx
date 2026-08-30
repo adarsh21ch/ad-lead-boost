@@ -451,7 +451,6 @@ function LeadsPage() {
                         }
                       | null;
                   const showSuggestion =
-                    !lead.latest_status &&
                     !dismissed[lead.id] &&
                     Boolean(suggestion?.suggested_status) &&
                     suggestion?.confidence !== "none";
