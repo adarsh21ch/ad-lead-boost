@@ -101,12 +101,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground",
                 isActive(item.to) && "bg-accent text-foreground",
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {badgeFor(item.to) ? (
+                <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {badgeFor(item.to)}
+                </span>
+              ) : null}
             </Link>
+
           ))}
         </nav>
       </div>
