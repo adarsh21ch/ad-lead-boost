@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Copy, Info, MessageSquare, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 
-type LeadSearch = { q?: string; status?: string };
+type LeadSearch = { q?: string | undefined; status?: string | undefined };
 
 const STATUS_CHIPS = [
   { value: "all", label: "All" },
@@ -40,10 +40,14 @@ const STATUS_CHIPS = [
 ];
 
 export const Route = createFileRoute("/_authenticated/leads")({
-  validateSearch: (search: Record<string, unknown>): LeadSearch => ({
-    q: typeof search.q === "string" && search.q ? search.q : undefined,
-    status: typeof search.status === "string" && search.status ? search.status : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): LeadSearch => {
+    const q = search["q"];
+    const status = search["status"];
+    return {
+      q: typeof q === "string" && q ? q : undefined,
+      status: typeof status === "string" && status ? status : undefined,
+    };
+  },
   head: () => ({
     meta: [
       { title: "Leads — AdsPro" },
@@ -163,7 +167,7 @@ function LeadsPage() {
     if (searchInput === urlQuery) return;
     const t = setTimeout(() => {
       navigate({
-        search: (prev) => ({ ...prev, q: searchInput || undefined }),
+        search: (prev: LeadSearch): LeadSearch => ({ ...prev, q: searchInput || undefined }),
         replace: true,
       });
     }, 350);
@@ -289,7 +293,7 @@ function LeadsPage() {
                 variant={activeStatus === chip.value ? "default" : "outline"}
                 onClick={() =>
                   navigate({
-                    search: (prev) => ({
+                    search: (prev: LeadSearch): LeadSearch => ({
                       ...prev,
                       status: chip.value === "all" ? undefined : chip.value,
                     }),
