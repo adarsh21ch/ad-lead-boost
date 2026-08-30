@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getIntegrationAccount, listLeads, setLeadNotes, setLeadStatus } from "@/lib/adspro.functions";
+import {
+  getIntegrationAccount,
+  listLeads,
+  reenrichLead,
+  setLeadNotes,
+  setLeadStatus,
+} from "@/lib/adspro.functions";
 import { LEAD_STATUSES } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -25,8 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Copy, Info, MessageSquare, StickyNote } from "lucide-react";
+import { Copy, Info, MessageSquare, RefreshCw, StickyNote } from "lucide-react";
 import { toast } from "sonner";
+
 
 type LeadSearch = { q?: string | undefined; status?: string | undefined };
 
@@ -78,6 +85,35 @@ function humanizeKey(key: string): string {
   const spaced = key.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
+
+/** Meta sends answer values snake-cased; nobody reads them that way. */
+function humanizeAnswer(value: unknown): string {
+  const raw = String(value ?? "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+const PREFILL_KEYS = ["gender", "date_of_birth"];
+
+function prefillLine(responses: Record<string, string>): string | null {
+  const parts: string[] = [];
+  if (responses["gender"]) parts.push(humanizeAnswer(responses["gender"]));
+  if (responses["date_of_birth"]) parts.push(`b. ${responses["date_of_birth"]}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  not_qualified: "Not Qualified",
+  booked: "Booked",
+  purchased: "Purchased",
+};
+
+function suggestionLabel(status: string): string {
+  return STATUS_LABELS[status] ?? humanizeKey(status);
+}
+
 
 function copy(value: string, label: string) {
   navigator.clipboard?.writeText(value).then(
@@ -238,15 +274,51 @@ function LeadsPage() {
     (account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id,
   );
 
-  const updateStatus = async (leadId: string, status: string) => {
+  // Dismissals are page-session only — no DDL exists to persist them.
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
+  const [reenriching, setReenriching] = useState<string | null>(null);
+  const reenrichFn = useServerFn(reenrichLead);
+
+  // Only ever called from a click handler — never on render, load or effect.
+  const updateStatus = async (
+    leadId: string,
+    status: string,
+    suggestedStatus: string | null = null,
+  ) => {
     try {
-      await setLeadStatusFn({ data: { leadId, status } });
+      await setLeadStatusFn({ data: { leadId, status, suggestedStatus } });
       toast.success("Status saved — it will be sent to Meta by the dispatcher");
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["untouched-leads"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save status");
     }
   };
+
+  const runReenrich = async (leadId: string) => {
+    setReenriching(leadId);
+    try {
+      const res = (await reenrichFn({ data: { leadId } })) as {
+        ok?: boolean;
+        skipped?: boolean;
+        reason?: string;
+        error?: string;
+      };
+      if (res?.ok && !res.skipped) {
+        toast.success("Lead details refreshed");
+      } else if (res?.skipped) {
+        toast.warning(`Skipped: ${res.reason ?? "no reason given"}`);
+      } else {
+        toast.error(res?.error ?? res?.reason ?? "Could not refresh this lead");
+      }
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not refresh this lead");
+    } finally {
+      setReenriching(null);
+    }
+  };
+
 
   const hasFilters = Boolean(urlQuery) || activeStatus !== "all";
 
@@ -367,7 +439,23 @@ function LeadsPage() {
                 {leads.map((lead) => {
                   const phone = lead.phone ?? null;
                   const waHref = phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
-                  const answers = Object.entries(lead.responses ?? {});
+                  const allAnswers = Object.entries(lead.responses ?? {});
+                  const answers = allAnswers.filter(([k]) => !PREFILL_KEYS.includes(k));
+                  const prefill = prefillLine(lead.responses ?? {});
+                  const suggestion =
+                    ("suggestion" in lead ? lead.suggestion : null) as
+                      | {
+                          suggested_status: string | null;
+                          confidence: "high" | "needs_human" | "none";
+                          reason: string;
+                        }
+                      | null;
+                  const showSuggestion =
+                    !lead.latest_status &&
+                    !dismissed[lead.id] &&
+                    Boolean(suggestion?.suggested_status) &&
+                    suggestion?.confidence !== "none";
+
                   return (
                     <TableRow key={lead.id} className="align-top">
                       <TableCell className="max-w-[180px] text-sm">
@@ -430,21 +518,27 @@ function LeadsPage() {
                       </TableCell>
 
                       <TableCell className="min-w-[260px] text-sm">
-                        {answers.length ? (
+                        {answers.length || prefill ? (
                           <dl className="space-y-1">
                             {answers.map(([key, value]) => (
                               <div key={key}>
                                 <dt className="text-xs text-muted-foreground">
                                   {humanizeKey(key)}
                                 </dt>
-                                <dd className="text-sm">{String(value)}</dd>
+                                <dd className="text-sm">{humanizeAnswer(value)}</dd>
                               </div>
                             ))}
+                            {prefill ? (
+                              <div>
+                                <dd className="text-xs text-muted-foreground">{prefill}</dd>
+                              </div>
+                            ) : null}
                           </dl>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
+
 
                       <TableCell className="max-w-[180px] text-xs text-muted-foreground">
                         <p className="truncate" title={lead.campaign_name ?? undefined}>
@@ -466,17 +560,57 @@ function LeadsPage() {
                         </p>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="max-w-[210px]">
                         {lead.latest_status ? (
                           <Badge variant="secondary">{lead.latest_status.replace("_", " ")}</Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
+                        {showSuggestion && suggestion ? (
+                          <div className="mt-1.5 space-y-1" title={suggestion.reason}>
+                            <Badge variant="outline">
+                              Suggested: {suggestionLabel(suggestion.suggested_status!)}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground">
+                              {suggestion.confidence === "high"
+                                ? "Decidable from their answers."
+                                : "Confirm they replied on WhatsApp first."}
+                            </p>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-6 px-2 text-xs"
+                                onClick={() =>
+                                  updateStatus(
+                                    lead.id,
+                                    suggestion.suggested_status!,
+                                    suggestion.suggested_status,
+                                  )
+                                }
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => setDismissed((d) => ({ ...d, [lead.id]: true }))}
+                              >
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                       </TableCell>
 
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Select onValueChange={(v) => updateStatus(lead.id, v)}>
+                          <Select
+                            onValueChange={(v) =>
+                              updateStatus(lead.id, v, showSuggestion ? (suggestion?.suggested_status ?? null) : null)
+                            }
+                          >
                             <SelectTrigger className="w-36">
                               <SelectValue placeholder="Set status…" />
                             </SelectTrigger>
@@ -489,6 +623,19 @@ function LeadsPage() {
                             </SelectContent>
                           </Select>
                           <NotesCell leadId={lead.id} notes={lead.notes ?? null} />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Re-fetch this lead's details"
+                            title="Re-fetch this lead's details"
+                            disabled={reenriching === lead.id}
+                            onClick={() => runReenrich(lead.id)}
+                          >
+                            <RefreshCw
+                              className={`size-4 text-muted-foreground ${reenriching === lead.id ? "animate-spin" : ""}`}
+                            />
+                          </Button>
+
                         </div>
                       </TableCell>
                     </TableRow>

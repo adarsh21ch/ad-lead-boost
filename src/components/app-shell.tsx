@@ -1,7 +1,9 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { countUntouchedLeads } from "@/lib/adspro.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
@@ -20,6 +22,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const countUntouchedFn = useServerFn(countUntouchedLeads);
+
+  // Fetched on mount and whenever the route changes — no interval, no polling.
+  const { data: untouched } = useQuery({
+    queryKey: ["untouched-leads", pathname],
+    queryFn: () => countUntouchedFn(),
+    staleTime: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+  });
+  const untouchedCount = untouched?.count ?? 0;
 
   const signOut = async () => {
     await queryClient.cancelQueries();
@@ -30,6 +43,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (to: string) =>
     to === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(to);
+
+  const badgeFor = (to: string) =>
+    to === "/leads" && untouchedCount > 0 ? untouchedCount : null;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,12 +63,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={cn(
-                "block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
+                "flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
                 isActive(item.to) && "bg-accent text-foreground",
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {badgeFor(item.to) ? (
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  {badgeFor(item.to)}
+                </span>
+              ) : null}
             </Link>
+
           ))}
         </nav>
         {/* Sign out pinned to the bottom — never drifts with page scroll. */}
@@ -78,12 +101,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground",
                 isActive(item.to) && "bg-accent text-foreground",
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {badgeFor(item.to) ? (
+                <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {badgeFor(item.to)}
+                </span>
+              ) : null}
             </Link>
+
           ))}
         </nav>
       </div>

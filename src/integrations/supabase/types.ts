@@ -482,6 +482,32 @@ export type Database = {
           },
         ]
       }
+      qualification_rules: {
+        Row: {
+          account_id: string
+          rule: Json
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          rule?: Json
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          rule?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualification_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retention_runs: {
         Row: {
           cutoff: string
@@ -517,6 +543,7 @@ export type Database = {
           raw_payload: Json | null
           source: string
           status: string
+          suggested_status: string | null
         }
         Insert: {
           account_id: string
@@ -528,6 +555,7 @@ export type Database = {
           raw_payload?: Json | null
           source: string
           status: string
+          suggested_status?: string | null
         }
         Update: {
           account_id?: string
@@ -539,6 +567,7 @@ export type Database = {
           raw_payload?: Json | null
           source?: string
           status?: string
+          suggested_status?: string | null
         }
         Relationships: [
           {
@@ -554,6 +583,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lead_attribution"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_qualification_suggestions"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "status_events_lead_id_fkey"
@@ -742,6 +778,45 @@ export type Database = {
           },
         ]
       }
+      lead_qualification_suggestions: {
+        Row: {
+          account_id: string | null
+          confidence: string | null
+          created_at: string | null
+          lead_id: string | null
+          matched_key: string | null
+          matched_value: string | null
+          reason: string | null
+          suggested_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qualification_agreement: {
+        Row: {
+          accept_rate_pct: number | null
+          accepted: number | null
+          account_id: string | null
+          decisions: number | null
+          suggested_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_token_expiry: { Args: { p_days?: number }; Returns: number }
@@ -759,6 +834,7 @@ export type Database = {
         Args: { p_encrypted: string; p_key: string }
         Returns: string
       }
+      default_qualification_rule: { Args: never; Returns: Json }
       encrypt_token: {
         Args: { p_key: string; p_token: string }
         Returns: string
@@ -777,6 +853,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      normalize_answer: { Args: { p_value: string }; Returns: string }
       record_token_health: {
         Args: {
           p_account_id: string
@@ -804,6 +881,16 @@ export type Database = {
           p_levels: string[]
         }
         Returns: string
+      }
+      suggest_lead_status: {
+        Args: { p_responses: Json; p_rule: Json }
+        Returns: {
+          confidence: string
+          matched_key: string
+          matched_value: string
+          reason: string
+          suggested_status: string
+        }[]
       }
       upsert_ad_entities: {
         Args: { p_account_id: string; p_rows: Json }
