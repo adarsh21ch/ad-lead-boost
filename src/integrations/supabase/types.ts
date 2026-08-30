@@ -781,8 +781,10 @@ export type Database = {
       lead_qualification_suggestions: {
         Row: {
           account_id: string | null
+          awaiting_decision: boolean | null
           confidence: string | null
           created_at: string | null
+          is_untouched: boolean | null
           lead_id: string | null
           matched_key: string | null
           matched_value: string | null

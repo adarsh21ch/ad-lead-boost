@@ -297,7 +297,7 @@ export const listLeads = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false });
       events = ev ?? [];
     }
-    // The view owns the definition of "untouched" — never re-derived here.
+    // The view owns the definition of "awaiting decision" — never re-derived here.
     type Suggestion = {
       suggested_status: string | null;
       confidence: "high" | "needs_human" | "none";
@@ -312,7 +312,7 @@ export const listLeads = createServerFn({ method: "GET" })
         .select("*")
         .in("lead_id", leadIds);
       for (const s of sug ?? []) {
-        if (!s.lead_id) continue;
+        if (!s.lead_id || !s.awaiting_decision) continue;
         suggestions.set(s.lead_id, {
           suggested_status: s.suggested_status ?? null,
           confidence: (s.confidence ?? "none") as Suggestion["confidence"],
@@ -350,13 +350,13 @@ export const listLeads = createServerFn({ method: "GET" })
     };
   });
 
-export const countUntouchedLeads = createServerFn({ method: "GET" })
+export const countLeadsAwaitingDecision = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // No extra where clause: migration 0016 already excludes test leads.
     const { count, error } = await context.supabase
       .from("lead_qualification_suggestions")
-      .select("lead_id", { count: "exact", head: true });
+      .select("lead_id", { count: "exact", head: true })
+      .eq("awaiting_decision", true);
     if (error) throw error;
     return { count: count ?? 0 };
   });

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { countUntouchedLeads } from "@/lib/adspro.functions";
+import { countLeadsAwaitingDecision } from "@/lib/adspro.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
@@ -22,17 +22,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const countUntouchedFn = useServerFn(countUntouchedLeads);
+  const countAwaitingFn = useServerFn(countLeadsAwaitingDecision);
 
   // Fetched on mount and whenever the route changes — no interval, no polling.
-  const { data: untouched } = useQuery({
-    queryKey: ["untouched-leads", pathname],
-    queryFn: () => countUntouchedFn(),
+  const { data: awaiting } = useQuery({
+    queryKey: ["leads-awaiting-decision", pathname],
+    queryFn: () => countAwaitingFn(),
     staleTime: 0,
     refetchInterval: false,
     refetchOnWindowFocus: false,
   });
-  const untouchedCount = untouched?.count ?? 0;
+  const awaitingCount = awaiting?.count ?? 0;
 
   const signOut = async () => {
     await queryClient.cancelQueries();
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     to === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(to);
 
   const badgeFor = (to: string) =>
-    to === "/leads" && untouchedCount > 0 ? untouchedCount : null;
+    to === "/leads" && awaitingCount > 0 ? awaitingCount : null;
 
 
   return (
