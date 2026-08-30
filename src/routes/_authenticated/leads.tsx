@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getIntegrationAccount, listLeads, setLeadNotes, setLeadStatus } from "@/lib/adspro.functions";
+import {
+  getIntegrationAccount,
+  listLeads,
+  reenrichLead,
+  setLeadNotes,
+  setLeadStatus,
+} from "@/lib/adspro.functions";
 import { LEAD_STATUSES } from "@/lib/adspro.constants";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -25,8 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Copy, Info, MessageSquare, StickyNote } from "lucide-react";
+import { Copy, Info, MessageSquare, RefreshCw, StickyNote } from "lucide-react";
 import { toast } from "sonner";
+
 
 type LeadSearch = { q?: string | undefined; status?: string | undefined };
 
