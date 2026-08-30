@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getIntegrationAccount, listLeads, setLeadStatus } from "@/lib/adspro.functions";
+import {
+  getIntegrationAccount,
+  listLeads,
+  listSourceOptions,
+  setLeadStatus,
+} from "@/lib/adspro.functions";
 import { AppShell } from "@/components/app-shell";
 import {
   Table,
@@ -12,21 +17,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight, Copy, Info, MessageSquare } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronRight, Copy, MessageSquare, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { LeadDetailPanel, type PanelLead } from "@/components/lead-detail-panel";
-import {
-  ENRICHMENT_COPY,
-  identityLine,
-  relativeTime,
-  statusLabel,
-  waHref,
-} from "@/lib/lead-format";
+import { LeadStatusSelect } from "@/components/lead-status-select";
+import { LeadAnswers } from "@/components/lead-answers";
+import { ENRICHMENT_COPY, identityLine, isProfileKey, waHref } from "@/lib/lead-format";
 
-type LeadSearch = { q?: string | undefined; status?: string | undefined };
+type LeadSearch = {
+  q?: string | undefined;
+  status?: string | undefined;
+  campaign?: string | undefined;
+  adset?: string | undefined;
+  ad?: string | undefined;
+};
 
 const STATUS_CHIPS = [
   { value: "all", label: "All" },
@@ -37,13 +50,17 @@ const STATUS_CHIPS = [
   { value: "purchased", label: "Purchased" },
 ];
 
+const ALL = "__all__";
+
 export const Route = createFileRoute("/_authenticated/leads")({
   validateSearch: (search: Record<string, unknown>): LeadSearch => {
-    const q = search["q"];
-    const status = search["status"];
+    const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
     return {
-      q: typeof q === "string" && q ? q : undefined,
-      status: typeof status === "string" && status ? status : undefined,
+      q: str(search["q"]),
+      status: str(search["status"]),
+      campaign: str(search["campaign"]),
+      adset: str(search["adset"]),
+      ad: str(search["ad"]),
     };
   },
   head: () => ({
@@ -71,7 +88,7 @@ function stop(e: React.MouseEvent | React.KeyboardEvent) {
   e.stopPropagation();
 }
 
-type LeadRow = PanelLead & { detailCount: number };
+type LeadRow = PanelLead & { detailCount: number; answers: Array<[string, string]> };
 
 function LeadNameCell({ lead }: { lead: LeadRow }) {
   return (
@@ -87,7 +104,7 @@ function LeadNameCell({ lead }: { lead: LeadRow }) {
         ) : null}
       </div>
       <p
-        className="mt-0.5 text-xs text-muted-foreground"
+        className="mt-0.5 line-clamp-2 text-xs text-muted-foreground"
         title={new Date(lead.created_at).toLocaleString()}
       >
         {identityLine(lead.responses, lead.created_at)}
@@ -99,49 +116,109 @@ function LeadNameCell({ lead }: { lead: LeadRow }) {
   );
 }
 
-function SuggestionChip({
+function ContactCell({
   lead,
-  onAccept,
-  onDismiss,
+  enrichmentEnabled,
 }: {
   lead: LeadRow;
-  onAccept: () => void;
-  onDismiss: () => void;
+  enrichmentEnabled: boolean;
 }) {
-  const suggestion = lead.suggestion!;
+  const phone = lead.phone ?? null;
+  const enrichmentNote =
+    lead.enrichment_status === "not_attempted" && !enrichmentEnabled
+      ? "Enrichment off"
+      : (ENRICHMENT_COPY[lead.enrichment_status ?? "not_attempted"] ?? "");
   return (
-    <div className="mt-1.5 space-y-1" title={suggestion.reason}>
-      <Badge variant="outline">Suggested: {statusLabel(suggestion.suggested_status!)}</Badge>
-      <p className="text-xs text-muted-foreground">
-        {suggestion.confidence === "high"
-          ? "Decidable from their answers."
-          : "Confirm they replied on WhatsApp first."}
-      </p>
-      <div className="flex gap-1">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="h-6 px-2 text-xs"
-          onClick={(e) => {
-            stop(e);
-            onAccept();
-          }}
+    <>
+      {phone ? (
+        <div className="flex items-center gap-1">
+          <span className="whitespace-nowrap text-xs font-medium">{phone}</span>
+          <Button asChild variant="ghost" size="icon" className="size-6" onClick={stop}>
+            <a
+              href={waHref(phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Message on WhatsApp"
+              title="WhatsApp"
+            >
+              <MessageSquare className="size-3.5" />
+            </a>
+          </Button>
+          <Button asChild variant="ghost" size="icon" className="size-6" onClick={stop}>
+            <a href={`tel:${phone}`} aria-label="Call this lead" title="Call">
+              <Phone className="size-3.5" />
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            aria-label="Copy phone number"
+            title="Copy"
+            onClick={(e) => {
+              stop(e);
+              copy(phone, "Phone");
+            }}
+          >
+            <Copy className="size-3" />
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{enrichmentNote || "No phone number yet."}</p>
+      )}
+      {lead.email ? (
+        <a
+          href={`mailto:${lead.email}`}
+          onClick={stop}
+          className="mt-0.5 block max-w-[170px] truncate text-xs text-muted-foreground hover:underline"
         >
-          Accept
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-xs"
-          onClick={(e) => {
-            stop(e);
-            onDismiss();
-          }}
-        >
-          Dismiss
-        </Button>
-      </div>
-    </div>
+          {lead.email}
+        </a>
+      ) : null}
+    </>
+  );
+}
+
+type SourceOption = {
+  level: string | null;
+  entity_id: string | null;
+  name: string | null;
+  parent_id: string | null;
+  lead_count: number | null;
+};
+
+function SourceFilter({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  options: SourceOption[];
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+}) {
+  // A filter that can only be set one way is noise.
+  if (options.length < 2) return null;
+  return (
+    <Select
+      value={value ?? ALL}
+      onValueChange={(v) => onChange(v === ALL ? undefined : v)}
+    >
+      <SelectTrigger className="h-8 w-[190px] shrink-0 text-xs" aria-label={label}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{placeholder}</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o.entity_id ?? ""} value={o.entity_id ?? ""}>
+            {(o.name || o.entity_id) ?? "—"} ({o.lead_count ?? 0})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -150,11 +227,15 @@ function LeadsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const listLeadsFn = useServerFn(listLeads);
+  const listSourceOptionsFn = useServerFn(listSourceOptions);
   const setLeadStatusFn = useServerFn(setLeadStatus);
   const getAccountFn = useServerFn(getIntegrationAccount);
 
   const activeStatus = search.status ?? "all";
   const urlQuery = search.q ?? "";
+  const campaignId = search.campaign;
+  const adsetId = search.adset;
+  const adId = search.ad;
   const [searchInput, setSearchInput] = useState(urlQuery);
 
   useEffect(() => {
@@ -174,16 +255,53 @@ function LeadsPage() {
   }, [searchInput, urlQuery, navigate]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["leads", urlQuery, activeStatus],
-    queryFn: () => listLeadsFn({ data: { search: urlQuery, status: activeStatus } }),
+    queryKey: ["leads", urlQuery, activeStatus, campaignId, adsetId, adId],
+    queryFn: () =>
+      listLeadsFn({
+        data: {
+          search: urlQuery,
+          status: activeStatus,
+          campaignId: campaignId ?? null,
+          adsetId: adsetId ?? null,
+          adId: adId ?? null,
+        },
+      }),
   });
   const enrichmentEnabled = Boolean(data?.enrichmentEnabled);
 
-  const leads: LeadRow[] = (data?.leads ?? []).map((l) => ({
-    ...(l as unknown as PanelLead),
-    detailCount: Object.keys((l as { responses?: Record<string, string> | null }).responses ?? {})
-      .length,
-  }));
+  const { data: sourceData } = useQuery({
+    queryKey: ["lead-source-options"],
+    queryFn: () => listSourceOptionsFn(),
+  });
+
+  const sourceOptions = (sourceData?.options ?? []) as SourceOption[];
+  const campaigns = useMemo(
+    () => sourceOptions.filter((o) => o.level === "campaign"),
+    [sourceOptions],
+  );
+  const adsets = useMemo(
+    () =>
+      sourceOptions.filter(
+        (o) => o.level === "adset" && (!campaignId || o.parent_id === campaignId),
+      ),
+    [sourceOptions, campaignId],
+  );
+  const ads = useMemo(
+    () =>
+      sourceOptions.filter((o) => o.level === "ad" && (!adsetId || o.parent_id === adsetId)),
+    [sourceOptions, adsetId],
+  );
+
+  const leads: LeadRow[] = (data?.leads ?? []).map((l) => {
+    const lead = l as unknown as PanelLead;
+    const responses = (lead.responses ?? {}) as Record<string, string>;
+    return {
+      ...lead,
+      detailCount: Object.keys(responses).length,
+      // Classification, not a filter: every non-prefill key lands in Answers.
+      answers: Object.entries(responses).filter(([k]) => !isProfileKey(k)),
+    };
+  });
 
   const [backfilling, setBackfilling] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
@@ -243,9 +361,6 @@ function LeadsPage() {
     (account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id,
   );
 
-  // Dismissals are page-session only — no DDL exists to persist them.
-  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
-
   // Only ever called from a click handler — never on render, load or effect.
   const updateStatus = async (
     leadId: string,
@@ -263,12 +378,9 @@ function LeadsPage() {
     }
   };
 
-  const hasFilters = Boolean(urlQuery) || activeStatus !== "all";
+  const hasFilters =
+    Boolean(urlQuery) || activeStatus !== "all" || Boolean(campaignId || adsetId || adId);
   const openLead = leads.find((l) => l.id === openLeadId) ?? null;
-  const isSuggestionVisible = (lead: LeadRow) =>
-    !dismissed[lead.id] &&
-    Boolean(lead.suggestion?.suggested_status) &&
-    lead.suggestion?.confidence !== "none";
 
   return (
     <AppShell>
@@ -326,6 +438,54 @@ function LeadsPage() {
               </Button>
             ))}
           </div>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:flex-wrap md:overflow-visible">
+            <SourceFilter
+              label="Campaign"
+              placeholder="All campaigns"
+              options={campaigns}
+              value={campaignId}
+              onChange={(v) =>
+                navigate({
+                  // Changing a parent resets its children.
+                  search: (prev: LeadSearch): LeadSearch => ({
+                    ...prev,
+                    campaign: v,
+                    adset: undefined,
+                    ad: undefined,
+                  }),
+                  replace: true,
+                })
+              }
+            />
+            <SourceFilter
+              label="Ad set"
+              placeholder="All ad sets"
+              options={adsets}
+              value={adsetId}
+              onChange={(v) =>
+                navigate({
+                  search: (prev: LeadSearch): LeadSearch => ({
+                    ...prev,
+                    adset: v,
+                    ad: undefined,
+                  }),
+                  replace: true,
+                })
+              }
+            />
+            <SourceFilter
+              label="Ad"
+              placeholder="All ads"
+              options={ads}
+              value={adId}
+              onChange={(v) =>
+                navigate({
+                  search: (prev: LeadSearch): LeadSearch => ({ ...prev, ad: v }),
+                  replace: true,
+                })
+              }
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -335,7 +495,7 @@ function LeadsPage() {
             {hasFilters ? (
               <>
                 <p className="font-medium text-foreground">No leads match this view</p>
-                <p className="mt-1">Try a different search term or status filter.</p>
+                <p className="mt-1">Try a different search term, status or source filter.</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -375,7 +535,7 @@ function LeadsPage() {
           <>
             {/* Mobile: cards */}
             <div className="space-y-3 md:hidden">
-              {leads.map((lead) => {
+              {leads.map((lead, i) => {
                 const phone = lead.phone ?? null;
                 return (
                   <div
@@ -388,13 +548,25 @@ function LeadsPage() {
                     }}
                     className="cursor-pointer space-y-3 rounded-md border p-4 text-sm"
                   >
-                    <LeadNameCell lead={lead} />
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-muted-foreground">{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <LeadNameCell lead={lead} />
+                      </div>
+                    </div>
                     {phone ? (
-                      <Button asChild className="w-full" onClick={stop}>
-                        <a href={waHref(phone)} target="_blank" rel="noopener noreferrer">
-                          <MessageSquare className="size-4" /> WhatsApp {phone}
-                        </a>
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button asChild onClick={stop}>
+                          <a href={waHref(phone)} target="_blank" rel="noopener noreferrer">
+                            <MessageSquare className="size-4" /> WhatsApp
+                          </a>
+                        </Button>
+                        <Button asChild variant="outline" onClick={stop}>
+                          <a href={`tel:${phone}`}>
+                            <Phone className="size-4" /> Call
+                          </a>
+                        </Button>
+                      </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
                         No phone number yet.{" "}
@@ -403,157 +575,87 @@ function LeadsPage() {
                           : (ENRICHMENT_COPY[lead.enrichment_status ?? "not_attempted"] ?? "")}
                       </p>
                     )}
-                    <div>
-                      {lead.latest_status ? (
-                        <Badge variant="secondary">{statusLabel(lead.latest_status)}</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No status set</span>
-                      )}
-                      {isSuggestionVisible(lead) ? (
-                        <SuggestionChip
-                          lead={lead}
-                          onAccept={() =>
-                            updateStatus(
-                              lead.id,
-                              lead.suggestion!.suggested_status!,
-                              lead.suggestion!.suggested_status,
-                            )
-                          }
-                          onDismiss={() => setDismissed((d) => ({ ...d, [lead.id]: true }))}
-                        />
-                      ) : null}
+                    {phone ? (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-medium">{phone}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          aria-label="Copy phone number"
+                          onClick={(e) => {
+                            stop(e);
+                            copy(phone, "Phone");
+                          }}
+                        >
+                          <Copy className="size-3" />
+                        </Button>
+                      </div>
+                    ) : null}
+                    <LeadAnswers entries={lead.answers} />
+                    <div onClick={stop}>
+                      <LeadStatusSelect
+                        status={lead.latest_status}
+                        onSelect={(s) => updateStatus(lead.id, s, null)}
+                      />
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {[lead.campaign_name, lead.adset_name, lead.ad_name]
-                        .filter(Boolean)
-                        .join(" · ") || "Source not resolved yet"}
-                    </p>
                   </div>
                 );
               })}
             </div>
 
-            {/* Desktop: narrow, scannable table */}
+            {/* Desktop: five columns — each one differs between rows */}
             <div className="hidden rounded-md border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Lead</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Source</TableHead>
+                    <TableHead className="w-10 text-right">#</TableHead>
+                    <TableHead className="w-[210px]">Lead</TableHead>
+                    <TableHead className="w-[190px]">Contact</TableHead>
+                    <TableHead>Answers</TableHead>
+                    <TableHead className="w-[150px]">Status</TableHead>
                     <TableHead className="w-8" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {leads.map((lead) => {
-                    const phone = lead.phone ?? null;
-                    return (
-                      <TableRow
-                        key={lead.id}
-                        tabIndex={0}
-                        onClick={() => setOpenLeadId(lead.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") setOpenLeadId(lead.id);
-                        }}
-                        className="cursor-pointer align-top"
-                      >
-                        <TableCell className="max-w-[200px] text-sm">
-                          <LeadNameCell lead={lead} />
-                        </TableCell>
+                  {leads.map((lead, i) => (
+                    <TableRow
+                      key={lead.id}
+                      tabIndex={0}
+                      onClick={() => setOpenLeadId(lead.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") setOpenLeadId(lead.id);
+                      }}
+                      className="cursor-pointer align-top"
+                    >
+                      <TableCell className="w-10 text-right text-xs text-muted-foreground">
+                        {i + 1}
+                      </TableCell>
 
-                        <TableCell className="text-sm">
-                          {phone ? (
-                            <div className="flex items-center gap-1.5">
-                              <a
-                                href={waHref(phone)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={stop}
-                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                              >
-                                <MessageSquare className="size-3.5" />
-                                {phone}
-                              </a>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-6"
-                                aria-label="Copy phone number"
-                                onClick={(e) => {
-                                  stop(e);
-                                  copy(phone, "Phone");
-                                }}
-                              >
-                                <Copy className="size-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div>
-                              <span className="text-muted-foreground">—</span>
-                              {lead.enrichment_status === "not_attempted" && !enrichmentEnabled ? (
-                                <p className="text-xs text-muted-foreground">Enrichment off</p>
-                              ) : null}
-                            </div>
-                          )}
-                          {lead.email ? (
-                            <a
-                              href={`mailto:${lead.email}`}
-                              onClick={stop}
-                              className="mt-0.5 block max-w-[190px] truncate text-xs text-muted-foreground hover:underline"
-                            >
-                              {lead.email}
-                            </a>
-                          ) : null}
-                        </TableCell>
+                      <TableCell className="max-w-[210px] text-sm">
+                        <LeadNameCell lead={lead} />
+                      </TableCell>
 
-                        <TableCell className="max-w-[210px]">
-                          {lead.latest_status ? (
-                            <Badge variant="secondary">{statusLabel(lead.latest_status)}</Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          )}
-                          {isSuggestionVisible(lead) ? (
-                            <SuggestionChip
-                              lead={lead}
-                              onAccept={() =>
-                                updateStatus(
-                                  lead.id,
-                                  lead.suggestion!.suggested_status!,
-                                  lead.suggestion!.suggested_status,
-                                )
-                              }
-                              onDismiss={() => setDismissed((d) => ({ ...d, [lead.id]: true }))}
-                            />
-                          ) : null}
-                        </TableCell>
+                      <TableCell className="max-w-[190px] text-sm">
+                        <ContactCell lead={lead} enrichmentEnabled={enrichmentEnabled} />
+                      </TableCell>
 
-                        <TableCell className="max-w-[180px] text-xs text-muted-foreground">
-                          <p className="truncate" title={lead.campaign_name ?? undefined}>
-                            {lead.campaign_name || lead.campaign_id || "—"}
-                          </p>
-                          <p className="truncate" title={lead.adset_name ?? undefined}>
-                            {lead.adset_name || lead.adset_id || "—"}
-                          </p>
-                          <p className="flex items-center gap-1 truncate">
-                            <span className="truncate" title={lead.ad_name ?? undefined}>
-                              {lead.ad_name || lead.ad_id || "—"}
-                            </span>
-                            <span
-                              title={`Leadgen ID: ${lead.meta_leadgen_id ?? "—"}`}
-                              aria-label={`Leadgen ID: ${lead.meta_leadgen_id ?? "—"}`}
-                            >
-                              <Info className="size-3 shrink-0" />
-                            </span>
-                          </p>
-                        </TableCell>
+                      <TableCell className="text-sm">
+                        <LeadAnswers entries={lead.answers} />
+                      </TableCell>
 
-                        <TableCell className="w-8 text-muted-foreground">
-                          <ChevronRight className="size-4" aria-hidden />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      <TableCell className="w-[150px]">
+                        <LeadStatusSelect
+                          status={lead.latest_status}
+                          onSelect={(s) => updateStatus(lead.id, s, null)}
+                        />
+                      </TableCell>
+
+                      <TableCell className="w-8 text-muted-foreground">
+                        <ChevronRight className="size-4" aria-hidden />
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -568,8 +670,6 @@ function LeadsPage() {
           if (!o) setOpenLeadId(null);
         }}
         onSetStatus={updateStatus}
-        onDismissSuggestion={(id) => setDismissed((d) => ({ ...d, [id]: true }))}
-        suggestionVisible={openLead ? isSuggestionVisible(openLead) : false}
       />
     </AppShell>
   );
