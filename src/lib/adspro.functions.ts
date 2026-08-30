@@ -416,10 +416,15 @@ export const setLeadNotes = createServerFn({ method: "POST" })
 
 export const setLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { leadId: string; status: string }) => {
+  .inputValidator((data: { leadId: string; status: string; suggestedStatus?: string | null }) => {
     if (!data?.leadId) throw new Error("leadId is required");
     if (!isLeadStatus(data.status)) throw new Error(`Invalid status: ${data.status}`);
-    return data;
+    return {
+      leadId: data.leadId,
+      status: data.status,
+      suggestedStatus:
+        typeof data.suggestedStatus === "string" && data.suggestedStatus ? data.suggestedStatus : null,
+    };
   })
   .handler(async ({ data, context }) => {
     // RLS lets the owner read their own leads — this doubles as the ownership check.
@@ -433,7 +438,14 @@ export const setLeadStatus = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: event, error: insErr } = await supabaseAdmin
       .from("status_events")
-      .insert({ account_id: lead.account_id, lead_id: lead.id, status: data.status, source: "manual" })
+      .insert({
+        account_id: lead.account_id,
+        lead_id: lead.id,
+        status: data.status,
+        source: "manual",
+        suggested_status: data.suggestedStatus,
+      })
+
       .select()
       .single();
     if (insErr) throw insErr;
