@@ -274,15 +274,51 @@ function LeadsPage() {
     (account as { meta_page_id?: string | null } | null | undefined)?.meta_page_id,
   );
 
-  const updateStatus = async (leadId: string, status: string) => {
+  // Dismissals are page-session only — no DDL exists to persist them.
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
+  const [reenriching, setReenriching] = useState<string | null>(null);
+  const reenrichFn = useServerFn(reenrichLead);
+
+  // Only ever called from a click handler — never on render, load or effect.
+  const updateStatus = async (
+    leadId: string,
+    status: string,
+    suggestedStatus: string | null = null,
+  ) => {
     try {
-      await setLeadStatusFn({ data: { leadId, status } });
+      await setLeadStatusFn({ data: { leadId, status, suggestedStatus } });
       toast.success("Status saved — it will be sent to Meta by the dispatcher");
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["untouched-leads"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save status");
     }
   };
+
+  const runReenrich = async (leadId: string) => {
+    setReenriching(leadId);
+    try {
+      const res = (await reenrichFn({ data: { leadId } })) as {
+        ok?: boolean;
+        skipped?: boolean;
+        reason?: string;
+        error?: string;
+      };
+      if (res?.ok && !res.skipped) {
+        toast.success("Lead details refreshed");
+      } else if (res?.skipped) {
+        toast.warning(`Skipped: ${res.reason ?? "no reason given"}`);
+      } else {
+        toast.error(res?.error ?? res?.reason ?? "Could not refresh this lead");
+      }
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not refresh this lead");
+    } finally {
+      setReenriching(null);
+    }
+  };
+
 
   const hasFilters = Boolean(urlQuery) || activeStatus !== "all";
 
