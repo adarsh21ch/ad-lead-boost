@@ -349,6 +349,7 @@ export type Database = {
           client_ip: unknown
           client_user_agent: string | null
           created_at: string
+          email: string | null
           email_hash: string | null
           enriched_at: string | null
           enrichment_attempts: number
@@ -362,8 +363,11 @@ export type Database = {
           id: string
           is_test: boolean
           meta_leadgen_id: string | null
+          notes: string | null
+          phone: string | null
           phone_hash: string | null
           raw_field_data: Json | null
+          responses: Json
         }
         Insert: {
           account_id: string
@@ -376,6 +380,7 @@ export type Database = {
           client_ip?: unknown
           client_user_agent?: string | null
           created_at?: string
+          email?: string | null
           email_hash?: string | null
           enriched_at?: string | null
           enrichment_attempts?: number
@@ -389,8 +394,11 @@ export type Database = {
           id?: string
           is_test?: boolean
           meta_leadgen_id?: string | null
+          notes?: string | null
+          phone?: string | null
           phone_hash?: string | null
           raw_field_data?: Json | null
+          responses?: Json
         }
         Update: {
           account_id?: string
@@ -403,6 +411,7 @@ export type Database = {
           client_ip?: unknown
           client_user_agent?: string | null
           created_at?: string
+          email?: string | null
           email_hash?: string | null
           enriched_at?: string | null
           enrichment_attempts?: number
@@ -416,8 +425,11 @@ export type Database = {
           id?: string
           is_test?: boolean
           meta_leadgen_id?: string | null
+          notes?: string | null
+          phone?: string | null
           phone_hash?: string | null
           raw_field_data?: Json | null
+          responses?: Json
         }
         Relationships: [
           {
