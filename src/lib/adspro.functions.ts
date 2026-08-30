@@ -361,6 +361,27 @@ export const countLeadsAwaitingDecision = createServerFn({ method: "GET" })
     return { count: count ?? 0 };
   });
 
+/** Timeline for one lead. Read-only: never writes a status_event. */
+export const getLeadStatusHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { leadId: string }) => {
+    if (!data?.leadId) throw new Error("leadId is required");
+    return { leadId: data.leadId };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("lead_status_history")
+      .select(
+        "status_event_id, status, source, suggested_status, created_at, dispatch_status, meta_event_name, http_status, delivered_at, retry_count",
+      )
+      .eq("lead_id", data.leadId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { events: rows ?? [] };
+  });
+
+
+
 export const reenrichLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string }) => {
