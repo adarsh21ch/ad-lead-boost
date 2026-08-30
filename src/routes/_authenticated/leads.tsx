@@ -560,17 +560,57 @@ function LeadsPage() {
                         </p>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="max-w-[210px]">
                         {lead.latest_status ? (
                           <Badge variant="secondary">{lead.latest_status.replace("_", " ")}</Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
+                        {showSuggestion && suggestion ? (
+                          <div className="mt-1.5 space-y-1" title={suggestion.reason}>
+                            <Badge variant="outline">
+                              Suggested: {suggestionLabel(suggestion.suggested_status!)}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground">
+                              {suggestion.confidence === "high"
+                                ? "Decidable from their answers."
+                                : "Confirm they replied on WhatsApp first."}
+                            </p>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-6 px-2 text-xs"
+                                onClick={() =>
+                                  updateStatus(
+                                    lead.id,
+                                    suggestion.suggested_status!,
+                                    suggestion.suggested_status,
+                                  )
+                                }
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => setDismissed((d) => ({ ...d, [lead.id]: true }))}
+                              >
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                       </TableCell>
 
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Select onValueChange={(v) => updateStatus(lead.id, v)}>
+                          <Select
+                            onValueChange={(v) =>
+                              updateStatus(lead.id, v, showSuggestion ? (suggestion?.suggested_status ?? null) : null)
+                            }
+                          >
                             <SelectTrigger className="w-36">
                               <SelectValue placeholder="Set status…" />
                             </SelectTrigger>
@@ -583,6 +623,19 @@ function LeadsPage() {
                             </SelectContent>
                           </Select>
                           <NotesCell leadId={lead.id} notes={lead.notes ?? null} />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Re-fetch this lead's details"
+                            title="Re-fetch this lead's details"
+                            disabled={reenriching === lead.id}
+                            onClick={() => runReenrich(lead.id)}
+                          >
+                            <RefreshCw
+                              className={`size-4 text-muted-foreground ${reenriching === lead.id ? "animate-spin" : ""}`}
+                            />
+                          </Button>
+
                         </div>
                       </TableCell>
                     </TableRow>
