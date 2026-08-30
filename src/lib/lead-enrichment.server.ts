@@ -3,9 +3,11 @@
 // ad hierarchy the leadgen webhook omits.
 //
 // PII rules enforced here:
-//  - raw phone/email are hashed in memory and discarded in the same request
-//  - the Graph `field_data` is NEVER written to raw_field_data (webhook envelope only)
-//  - names/emails/phones are never logged; only leadgen_id + status
+//  - raw phone/email are hashed for CAPI matching AND stored raw (leads.phone /
+//    leads.email) so the owner can contact the lead; answers go to leads.responses
+//  - the Graph `field_data` envelope is NEVER written to raw_field_data (webhook only)
+//  - names/emails/phones/answers are never logged; only leadgen_id + status
+
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { GRAPH_VERSION, decryptToken } from "./meta.server";
