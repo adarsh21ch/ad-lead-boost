@@ -209,6 +209,7 @@ function PerformancePage() {
       let leadsQuery = supabase
         .from("lead_attribution")
         .select("id, ad_id")
+        .eq("is_test", false)
         .gte("created_at", `${from}T00:00:00.000Z`)
         .lt("created_at", toExclusive.toISOString());
       if (scopedAccountIds) leadsQuery = leadsQuery.in("account_id", scopedAccountIds);
