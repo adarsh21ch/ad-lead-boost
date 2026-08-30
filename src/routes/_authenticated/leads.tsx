@@ -273,7 +273,10 @@ function LeadsPage() {
     queryFn: () => listSourceOptionsFn(),
   });
 
-  const sourceOptions = (sourceData?.options ?? []) as SourceOption[];
+  const sourceOptions = useMemo(
+    () => (sourceData?.options ?? []) as SourceOption[],
+    [sourceData],
+  );
   const campaigns = useMemo(
     () => sourceOptions.filter((o) => o.level === "campaign"),
     [sourceOptions],
