@@ -267,6 +267,13 @@ export type Database = {
             foreignKeyName: "capi_delivery_logs_status_event_id_fkey"
             columns: ["status_event_id"]
             isOneToOne: false
+            referencedRelation: "lead_status_history"
+            referencedColumns: ["status_event_id"]
+          },
+          {
+            foreignKeyName: "capi_delivery_logs_status_event_id_fkey"
+            columns: ["status_event_id"]
+            isOneToOne: false
             referencedRelation: "status_events"
             referencedColumns: ["id"]
           },
@@ -797,6 +804,52 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_status_history: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          delivered_at: string | null
+          dispatch_status: string | null
+          http_status: number | null
+          lead_id: string | null
+          meta_event_name: string | null
+          retry_count: number | null
+          source: string | null
+          status: string | null
+          status_event_id: string | null
+          suggested_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_attribution"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_qualification_suggestions"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "status_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
