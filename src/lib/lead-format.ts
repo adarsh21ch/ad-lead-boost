@@ -1,6 +1,38 @@
 /** Shared formatting helpers for the Leads screen and its detail panel. */
 
-export const PREFILL_KEYS = ["gender", "date_of_birth"];
+/**
+ * Meta's documented Lead Ads *prefill* field names — values Meta already knows
+ * about the person, not questions the advertiser wrote. These names (and only
+ * these) are treated as "profile" fields and rendered in the Lead cell /
+ * "Profile details"; every other key in `responses` is one of the owner's own
+ * questions and renders in "Their answers".
+ *
+ * This is a CLASSIFICATION, never a filter: an unrecognised key is shown as a
+ * question, so forms this code has never seen still render in full.
+ */
+export const META_PREFILL_KEYS = [
+  "date_of_birth",
+  "gender",
+  "city",
+  "state",
+  "province",
+  "country",
+  "zip_code",
+  "post_code",
+  "street_address",
+  "marital_status",
+  "relationship_status",
+  "military_status",
+  "job_title",
+  "company_name",
+] as const;
+
+/** Back-compat alias. */
+export const PREFILL_KEYS: readonly string[] = META_PREFILL_KEYS;
+
+export function isProfileKey(key: string): boolean {
+  return (META_PREFILL_KEYS as readonly string[]).includes(key);
+}
 
 export const STATUS_LABELS: Record<string, string> = {
   new: "New",
