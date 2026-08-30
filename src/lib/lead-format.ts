@@ -108,12 +108,19 @@ export function identityLine(
   createdAt: string,
 ): string {
   const parts: string[] = [];
+  // Age is derived-and-additive: the raw date_of_birth still renders verbatim
+  // in the detail panel and is never replaced by this.
   const age = ageFromDob(responses?.["date_of_birth"]);
   if (age != null) parts.push(String(age));
   const gender = responses?.["gender"];
   if (gender) parts.push(humanizeAnswer(gender));
+  for (const key of META_PREFILL_KEYS) {
+    if (key === "gender" || key === "date_of_birth") continue;
+    const value = responses?.[key];
+    if (value) parts.push(humanizeAnswer(value));
+  }
   parts.push(relativeTime(createdAt));
-  return parts.join(" · ");
+  return parts.filter(Boolean).join(" · ");
 }
 
 export function waHref(phone: string): string {
