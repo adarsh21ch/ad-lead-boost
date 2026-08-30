@@ -221,12 +221,36 @@ function sanitizeSearchTerm(raw: string): string {
   return raw.replace(/[,()*\\"':]/g, " ").trim().slice(0, 80);
 }
 
+/** Source dropdown options — every campaign/ad set/ad that actually has leads. */
+export const listSourceOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("lead_source_options")
+      .select("account_id, level, entity_id, name, parent_id, lead_count");
+    if (error) throw error;
+    return { options: data ?? [] };
+  });
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data?: { search?: string; status?: string } | null) => ({
-    search: typeof data?.search === "string" ? data.search : "",
-    status: typeof data?.status === "string" ? data.status : "all",
-  }))
+  .inputValidator(
+    (
+      data?: {
+        search?: string;
+        status?: string;
+        campaignId?: string | null;
+        adsetId?: string | null;
+        adId?: string | null;
+      } | null,
+    ) => ({
+      search: typeof data?.search === "string" ? data.search : "",
+      status: typeof data?.status === "string" ? data.status : "all",
+      campaignId: typeof data?.campaignId === "string" && data.campaignId ? data.campaignId : null,
+      adsetId: typeof data?.adsetId === "string" && data.adsetId ? data.adsetId : null,
+      adId: typeof data?.adId === "string" && data.adId ? data.adId : null,
+    }),
+  )
   .handler(async ({ data, context }) => {
     const { isLeadEnrichmentEnabled } = await import("@/lib/lead-enrichment.server");
     const enrichmentEnabled = isLeadEnrichmentEnabled();
