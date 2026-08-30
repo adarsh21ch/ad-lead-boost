@@ -22,17 +22,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const countUntouchedFn = useServerFn(countUntouchedLeads);
+  const countAwaitingFn = useServerFn(countLeadsAwaitingDecision);
 
   // Fetched on mount and whenever the route changes — no interval, no polling.
-  const { data: untouched } = useQuery({
-    queryKey: ["untouched-leads", pathname],
-    queryFn: () => countUntouchedFn(),
+  const { data: awaiting } = useQuery({
+    queryKey: ["leads-awaiting-decision", pathname],
+    queryFn: () => countAwaitingFn(),
     staleTime: 0,
     refetchInterval: false,
     refetchOnWindowFocus: false,
   });
-  const untouchedCount = untouched?.count ?? 0;
+  const awaitingCount = awaiting?.count ?? 0;
 
   const signOut = async () => {
     await queryClient.cancelQueries();
