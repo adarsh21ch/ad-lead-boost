@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     to === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(to);
 
   const badgeFor = (to: string) =>
-    to === "/leads" && untouchedCount > 0 ? untouchedCount : null;
+    to === "/leads" && awaitingCount > 0 ? awaitingCount : null;
 
 
   return (
