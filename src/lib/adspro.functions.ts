@@ -297,6 +297,31 @@ export const listLeads = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false });
       events = ev ?? [];
     }
+    // The view owns the definition of "untouched" — never re-derived here.
+    type Suggestion = {
+      suggested_status: string | null;
+      confidence: "high" | "needs_human" | "none";
+      reason: string;
+      matched_key: string | null;
+      matched_value: string | null;
+    };
+    const suggestions = new Map<string, Suggestion>();
+    if (leadIds.length) {
+      const { data: sug } = await context.supabase
+        .from("lead_qualification_suggestions")
+        .select("*")
+        .in("lead_id", leadIds);
+      for (const s of sug ?? []) {
+        if (!s.lead_id) continue;
+        suggestions.set(s.lead_id, {
+          suggested_status: s.suggested_status ?? null,
+          confidence: (s.confidence ?? "none") as Suggestion["confidence"],
+          reason: s.reason ?? "",
+          matched_key: s.matched_key ?? null,
+          matched_value: s.matched_value ?? null,
+        });
+      }
+    }
     const latest = new Map<string, string>();
     for (const e of events) if (!latest.has(e.lead_id)) latest.set(e.lead_id, e.status);
     const statusFilter = data.status ?? "all";
@@ -311,6 +336,7 @@ export const listLeads = createServerFn({ method: "GET" })
         adset_name: attr?.adset_name ?? null,
         ad_name: attr?.ad_name ?? l.ad_name ?? null,
         latest_status: latest.get(l.id) ?? null,
+        suggestion: suggestions.get(l.id) ?? null,
       };
     });
     return {
@@ -323,6 +349,43 @@ export const listLeads = createServerFn({ method: "GET" })
             : mapped.filter((l) => l.latest_status === statusFilter),
     };
   });
+
+export const countUntouchedLeads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // No extra where clause: migration 0016 already excludes test leads.
+    const { count, error } = await context.supabase
+      .from("lead_qualification_suggestions")
+      .select("lead_id", { count: "exact", head: true });
+    if (error) throw error;
+    return { count: count ?? 0 };
+  });
+
+export const reenrichLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { leadId: string }) => {
+    if (!data?.leadId) throw new Error("leadId is required");
+    return { leadId: data.leadId };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: lead, error } = await context.supabase
+      .from("leads")
+      .select("id")
+      .eq("id", data.leadId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!lead) throw new Error("Lead not found");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enrichLead } = await import("@/lib/lead-enrichment.server");
+    const { error: resetErr } = await supabaseAdmin
+      .from("leads")
+      .update({ enrichment_status: "not_attempted", enrichment_attempts: 0, enrichment_error: null })
+      .eq("id", lead.id);
+    if (resetErr) throw resetErr;
+    const result = await enrichLead(supabaseAdmin, lead.id);
+    return result;
+  });
+
 
 export const setLeadNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
