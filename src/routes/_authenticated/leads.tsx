@@ -518,21 +518,27 @@ function LeadsPage() {
                       </TableCell>
 
                       <TableCell className="min-w-[260px] text-sm">
-                        {answers.length ? (
+                        {answers.length || prefill ? (
                           <dl className="space-y-1">
                             {answers.map(([key, value]) => (
                               <div key={key}>
                                 <dt className="text-xs text-muted-foreground">
                                   {humanizeKey(key)}
                                 </dt>
-                                <dd className="text-sm">{String(value)}</dd>
+                                <dd className="text-sm">{humanizeAnswer(value)}</dd>
                               </div>
                             ))}
+                            {prefill ? (
+                              <div>
+                                <dd className="text-xs text-muted-foreground">{prefill}</dd>
+                              </div>
+                            ) : null}
                           </dl>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
+
 
                       <TableCell className="max-w-[180px] text-xs text-muted-foreground">
                         <p className="truncate" title={lead.campaign_name ?? undefined}>
