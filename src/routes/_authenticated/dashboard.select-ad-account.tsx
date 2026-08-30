@@ -32,6 +32,15 @@ const plainError = (error: unknown): MetaError => ({
   rawResponse: null,
 });
 
+const crashError = (error: unknown): MetaError => ({
+  message: "Something went wrong loading this page.",
+  code: null,
+  errorSubcode: null,
+  fbtraceId: null,
+  httpStatus: null,
+  rawResponse: error instanceof Error ? (error.stack ?? error.message) : String(error ?? "Unknown error"),
+});
+
 export const Route = createFileRoute("/_authenticated/dashboard/select-ad-account")({
   head: () => ({
     meta: [
@@ -78,7 +87,7 @@ function SelectAdAccountError({ error }: { error: unknown }) {
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
         <h1 className="text-2xl font-bold">Select ad account</h1>
-        <ErrorPanel title="This page failed to load" error={plainError(error)} />
+        <ErrorPanel title="This page failed to load" error={crashError(error)} />
         <Button variant="outline" onClick={() => window.location.reload()}>Try again</Button>
       </div>
     </AppShell>
@@ -124,7 +133,7 @@ function SelectAdAccountPage() {
   }, [adAccountId, pixelsQuery.dataUpdatedAt]);
 
   const pixelError = pixelsQuery.data && !pixelsQuery.data.ok
-    ? pixelsQuery.data.error
+    ? { ...pixelsQuery.data.error, message: metaErrorCopy(pixelsQuery.data.error) }
     : pixelsQuery.isError ? plainError(pixelsQuery.error) : null;
   const pixels = pixelsQuery.data?.ok ? pixelsQuery.data.data : [];
 
