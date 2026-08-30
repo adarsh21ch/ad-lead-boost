@@ -439,7 +439,23 @@ function LeadsPage() {
                 {leads.map((lead) => {
                   const phone = lead.phone ?? null;
                   const waHref = phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
-                  const answers = Object.entries(lead.responses ?? {});
+                  const allAnswers = Object.entries(lead.responses ?? {});
+                  const answers = allAnswers.filter(([k]) => !PREFILL_KEYS.includes(k));
+                  const prefill = prefillLine(lead.responses ?? {});
+                  const suggestion =
+                    ("suggestion" in lead ? lead.suggestion : null) as
+                      | {
+                          suggested_status: string | null;
+                          confidence: "high" | "needs_human" | "none";
+                          reason: string;
+                        }
+                      | null;
+                  const showSuggestion =
+                    !lead.latest_status &&
+                    !dismissed[lead.id] &&
+                    Boolean(suggestion?.suggested_status) &&
+                    suggestion?.confidence !== "none";
+
                   return (
                     <TableRow key={lead.id} className="align-top">
                       <TableCell className="max-w-[180px] text-sm">
