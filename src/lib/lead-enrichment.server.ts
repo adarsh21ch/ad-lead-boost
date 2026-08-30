@@ -233,14 +233,42 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
   fillIfNull("campaign_id", payload.campaign_id);
   fillIfNull("campaign_name", payload.campaign_name);
   fillIfNull("form_id", payload.form_id);
+  // Raw-vs-hash split: the hashes below keep coming from the NORMALISED values
+  // (CAPI matching is unchanged); the raw values are stored alongside them so the
+  // owner can actually call/email the person.
+  if (rawPhone) fillIfNull("phone", rawPhone);
+  if (rawEmail) fillIfNull("email", rawEmail);
   if (rawEmail) fillIfNull("email_hash", sha256Hex(normalizeEmail(rawEmail)));
   if (rawPhone) {
     const normalized = normalizePhone(rawPhone);
     if (normalized) fillIfNull("phone_hash", sha256Hex(normalized));
   }
 
-  // NOTE: field_data is deliberately NOT persisted anywhere.
+  // Qualification answers: every field_data entry that is not a contact field.
+  const responses: Record<string, string> = {};
+  for (const f of fieldData) {
+    const key = (f?.name ?? "").trim();
+    if (!key) continue;
+    const lower = key.toLowerCase();
+    if (/name|email|phone|mobile/.test(lower)) continue;
+    const value = f?.values?.[0]?.trim();
+    if (!value) continue;
+    responses[key] = value;
+  }
+  const existingResponses = (lead as Record<string, unknown>)["responses"];
+  const existingHasKeys =
+    existingResponses != null &&
+    typeof existingResponses === "object" &&
+    Object.keys(existingResponses as Record<string, unknown>).length > 0;
+  if (!existingHasKeys && Object.keys(responses).length > 0) {
+    update["responses"] = responses;
+  }
+
+  // Contact fields and qualification answers are persisted (columns phone, email,
+  // responses); the raw Graph envelope still is not — raw_field_data holds the
+  // webhook envelope only.
   const { error: writeError } = await admin.from("leads").update(update).eq("id", lead.id);
+
   if (writeError) {
     console.error(`[lead-enrichment] leadgen_id=${leadgenId} db write failed`, writeError.message);
     return { ok: false, error: "failed", code: null, message: writeError.message };
