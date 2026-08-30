@@ -86,6 +86,35 @@ function humanizeKey(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/** Meta sends answer values snake-cased; nobody reads them that way. */
+function humanizeAnswer(value: unknown): string {
+  const raw = String(value ?? "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+const PREFILL_KEYS = ["gender", "date_of_birth"];
+
+function prefillLine(responses: Record<string, string>): string | null {
+  const parts: string[] = [];
+  if (responses["gender"]) parts.push(humanizeAnswer(responses["gender"]));
+  if (responses["date_of_birth"]) parts.push(`b. ${responses["date_of_birth"]}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  not_qualified: "Not Qualified",
+  booked: "Booked",
+  purchased: "Purchased",
+};
+
+function suggestionLabel(status: string): string {
+  return STATUS_LABELS[status] ?? humanizeKey(status);
+}
+
+
 function copy(value: string, label: string) {
   navigator.clipboard?.writeText(value).then(
     () => toast.success(`${label} copied`),
