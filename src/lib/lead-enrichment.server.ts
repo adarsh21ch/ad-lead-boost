@@ -110,8 +110,9 @@ export async function enrichLead(admin: AdminClient, leadId: string): Promise<En
   const { data: lead, error } = await admin
     .from("leads")
     .select(
-      "id, account_id, meta_leadgen_id, enrichment_status, enrichment_attempts, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name, form_id, phone_hash, email_hash",
+      "id, account_id, meta_leadgen_id, enrichment_status, enrichment_attempts, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name, form_id, phone_hash, email_hash, phone, email, responses",
     )
+
     .eq("id", leadId)
     .maybeSingle();
   if (error || !lead) return { ok: true, skipped: true, reason: "lead_not_found" };
