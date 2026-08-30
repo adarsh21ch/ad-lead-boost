@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { countUntouchedLeads } from "@/lib/adspro.functions";
+import { countLeadsAwaitingDecision } from "@/lib/adspro.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
