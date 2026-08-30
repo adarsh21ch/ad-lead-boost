@@ -63,12 +63,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={cn(
-                "block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
+                "flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
                 isActive(item.to) && "bg-accent text-foreground",
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {badgeFor(item.to) ? (
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  {badgeFor(item.to)}
+                </span>
+              ) : null}
             </Link>
+
           ))}
         </nav>
         {/* Sign out pinned to the bottom — never drifts with page scroll. */}
