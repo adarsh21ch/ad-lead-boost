@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DataDeletionRouteImport } from './routes/data-deletion'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authenticated/deliveries'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
@@ -64,6 +65,11 @@ const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/data-deletion': typeof DataDeletionRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/deliveries': typeof AuthenticatedDeliveriesRoute
   '/leads': typeof AuthenticatedLeadsRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/data-deletion': typeof DataDeletionRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/deliveries': typeof AuthenticatedDeliveriesRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/performance': typeof AuthenticatedPerformanceRoute
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/data-deletion': typeof DataDeletionRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/deliveries': typeof AuthenticatedDeliveriesRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/data-deletion'
     | '/privacy'
     | '/terms'
+    | '/admin'
     | '/dashboard'
     | '/deliveries'
     | '/leads'
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/data-deletion'
     | '/privacy'
     | '/terms'
+    | '/admin'
     | '/deliveries'
     | '/leads'
     | '/performance'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/data-deletion'
     | '/privacy'
     | '/terms'
+    | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/deliveries'
     | '/_authenticated/leads'
@@ -406,6 +418,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -573,6 +592,7 @@ const AuthenticatedDashboardRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
   AuthenticatedDeliveriesRoute: typeof AuthenticatedDeliveriesRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
@@ -580,6 +600,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
   AuthenticatedDeliveriesRoute: AuthenticatedDeliveriesRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,

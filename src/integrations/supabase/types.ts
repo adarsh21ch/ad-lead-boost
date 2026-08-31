@@ -231,6 +231,24 @@ export type Database = {
           },
         ]
       }
+      app_admins: {
+        Row: {
+          created_at: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       capi_delivery_logs: {
         Row: {
           delivered_at: string | null
@@ -885,6 +903,125 @@ export type Database = {
       }
     }
     Functions: {
+      admin_ops_accounts: {
+        Args: never
+        Returns: {
+          account_id: string
+          account_name: string
+          created_at: string
+          days_to_expiry: number
+          meta_ad_account_id: string
+          meta_ad_account_name: string
+          meta_dataset_id: string
+          meta_dataset_name: string
+          owner_email: string
+          owner_user_id: string
+          page_subscribe_error: string
+          page_subscribe_status: string
+          status: string
+          token_expires_at: string
+          token_last_error: string
+          token_last_error_at: string
+          token_last_ok_at: string
+          token_status: string
+        }[]
+      }
+      admin_ops_alerts: {
+        Args: never
+        Returns: {
+          account_id: string
+          account_name: string
+          area: string
+          detail: string
+          message: string
+          severity: string
+        }[]
+      }
+      admin_ops_capi_health: {
+        Args: { p_hours?: number }
+        Returns: {
+          account_id: string
+          account_name: string
+          delivered: number
+          dispatch_breakdown: Json
+          events: number
+          failed: number
+          last_event_at: string
+          oldest_pending_minutes: number
+          pending: number
+          retries: number
+        }[]
+      }
+      admin_ops_cron: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobname: string
+          last_message: string
+          last_run_at: string
+          last_status: string
+          schedule: string
+        }[]
+      }
+      admin_ops_leads: {
+        Args: { p_days?: number }
+        Returns: {
+          account_id: string
+          account_name: string
+          last_lead_at: string
+          last_real_lead_at: string
+          leads_real: number
+          leads_real_window: number
+          leads_test: number
+          leads_total: number
+          leads_window: number
+          unlinked_real: number
+        }[]
+      }
+      admin_ops_retention: {
+        Args: { p_limit?: number }
+        Returns: {
+          cutoff: string
+          leads_deleted: number
+          note: string
+          ran_at: string
+        }[]
+      }
+      admin_ops_spend: {
+        Args: { p_days?: number }
+        Returns: {
+          account_id: string
+          account_name: string
+          currency: string
+          data_age_minutes: number
+          impressions_window: number
+          last_snapshot_at: string
+          latest_stat_date: string
+          meta_leads_window: number
+          spend_window: number
+        }[]
+      }
+      admin_ops_sync_health: {
+        Args: never
+        Returns: {
+          account_id: string
+          account_name: string
+          age_minutes: number
+          entities_upserted: number
+          error: string
+          failed_24h: number
+          finished_at: string
+          meta_calls: number
+          meta_code: number
+          meta_subcode: number
+          rows_unchanged: number
+          rows_written: number
+          runs_24h: number
+          started_at: string
+          status: string
+          verdict: string
+        }[]
+      }
       check_token_expiry: { Args: { p_days?: number }; Returns: number }
       claim_due_status_events: {
         Args: { p_limit?: number }
@@ -919,6 +1056,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_app_admin: { Args: never; Returns: boolean }
       normalize_answer: { Args: { p_value: string }; Returns: string }
       record_token_health: {
         Args: {
