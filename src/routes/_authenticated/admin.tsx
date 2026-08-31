@@ -87,7 +87,7 @@ function PanelShell({
 }: {
   title: string;
   subtitle?: string;
-  state: { isLoading: boolean; notAuthorised?: boolean; error?: string };
+  state: { isLoading: boolean; notAuthorised?: boolean | undefined; error?: string | undefined };
   children: React.ReactNode;
 }) {
   return (
