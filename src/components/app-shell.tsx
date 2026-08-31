@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { countLeadsAwaitingDecision } from "@/lib/adspro.functions";
+import { getAdminIdentity } from "@/lib/admin.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
@@ -23,6 +24,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const countAwaitingFn = useServerFn(countLeadsAwaitingDecision);
+  const adminIdentityFn = useServerFn(getAdminIdentity);
+
+  // Presentation only — /admin is gated server-side.
+  const { data: identity } = useQuery({
+    queryKey: ["admin-identity"],
+    queryFn: () => adminIdentityFn(),
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   // Fetched on mount and whenever the route changes — no interval, no polling.
   const { data: awaiting } = useQuery({
@@ -33,6 +43,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: false,
   });
   const awaitingCount = awaiting?.count ?? 0;
+  const navItems = identity?.isAdmin
+    ? [...NAV, { to: "/admin", label: "Ops health" } as const]
+    : [...NAV];
 
   const signOut = async () => {
     await queryClient.cancelQueries();
@@ -58,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -96,7 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
         <nav className="flex gap-2 overflow-x-auto px-3 pb-2">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
