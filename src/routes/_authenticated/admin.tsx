@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -125,17 +126,15 @@ function AdminPage() {
   const identity = useQuery({ queryKey: ["admin-identity"], queryFn: () => identityFn() });
 
   const enabled = identity.data?.isAdmin === true;
-  const q = <T,>(key: string, fn: () => Promise<T>) =>
-    useQuery({ queryKey: [key], queryFn: fn, enabled });
 
-  const alerts = q("admin-alerts", alertsFn as any);
-  const accounts = q("admin-accounts", accountsFn as any);
-  const sync = q("admin-sync", syncFn as any);
-  const capi = q("admin-capi", capiFn as any);
-  const leads = q("admin-leads", leadsFn as any);
-  const spend = q("admin-spend", spendFn as any);
-  const cron = q("admin-cron", cronFn as any);
-  const retention = q("admin-retention", retentionFn as any);
+  const alerts = useQuery({ queryKey: ["admin-alerts"], queryFn: () => alertsFn(), enabled });
+  const accounts = useQuery({ queryKey: ["admin-accounts"], queryFn: () => accountsFn(), enabled });
+  const sync = useQuery({ queryKey: ["admin-sync"], queryFn: () => syncFn(), enabled });
+  const capi = useQuery({ queryKey: ["admin-capi"], queryFn: () => capiFn(), enabled });
+  const leads = useQuery({ queryKey: ["admin-leads"], queryFn: () => leadsFn(), enabled });
+  const spend = useQuery({ queryKey: ["admin-spend"], queryFn: () => spendFn(), enabled });
+  const cron = useQuery({ queryKey: ["admin-cron"], queryFn: () => cronFn(), enabled });
+  const retention = useQuery({ queryKey: ["admin-retention"], queryFn: () => retentionFn(), enabled });
 
   if (identity.isLoading) {
     return (
@@ -328,8 +327,8 @@ function AdminPage() {
             </TableHeader>
             <TableBody>
               {((sync.data?.rows ?? []) as any[]).map((r, i) => (
-                <>
-                  <TableRow key={`${r.account_id ?? "null"}-${i}`}>
+                <Fragment key={`${r.account_id ?? "null"}-${i}`}>
+                  <TableRow>
                     <TableCell>{r.account_name}</TableCell>
                     <TableCell>{r.verdict}</TableCell>
                     <TableCell>{r.status ?? "—"}</TableCell>
@@ -347,7 +346,7 @@ function AdminPage() {
                     </TableCell>
                   </TableRow>
                   {r.error ? (
-                    <TableRow key={`${r.account_id ?? "null"}-${i}-err`}>
+                    <TableRow>
                       <TableCell colSpan={7}>
                         <details>
                           <summary className="cursor-pointer text-xs text-muted-foreground">
@@ -361,7 +360,7 @@ function AdminPage() {
                       </TableCell>
                     </TableRow>
                   ) : null}
-                </>
+                </Fragment>
               ))}
               {((sync.data?.rows ?? []) as any[]).length === 0 ? (
                 <TableRow>
